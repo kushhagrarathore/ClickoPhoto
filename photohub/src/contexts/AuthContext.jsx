@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   // Sign up with role selection and create profile row (user_profiles)
-  const signUp = async ({ email, password, fullName, role }) => {
+  const signUp = async ({ email, password, fullName, role, avatarUrl }) => {
     if (isDummyMode) {
       // Simulate signup in dummy mode
       const newUser = {
@@ -102,12 +102,16 @@ export const AuthProvider = ({ children }) => {
         options: {
           data: {
             full_name: fullName,
+            avatar_url: avatarUrl || null,
             role,
           },
         },
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Signup error:', error)
+        throw error
+      }
 
       // Create profile row in user_profiles
       if (data.user) {
