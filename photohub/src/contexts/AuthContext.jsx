@@ -58,23 +58,36 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe()
   }, [isDummyMode])
 
-  // Fetch user profile
+  // Fetch user profile (supports schemas using id or user_id)
   const fetchProfile = async (userId) => {
     try {
-      const { data, error } = await supabase
+      // Try id column first
+      let { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
-      if (error) throw error
-      setProfile(data)
+      if (error && error.code !== 'PGRST116') throw error
+
+      // If not found, try user_id column
+      if (!data) {
+        const second = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle()
+        data = second.data
+        if (second.error && second.error.code !== 'PGRST116') throw second.error
+      }
+
+      if (data) setProfile(data)
     } catch (error) {
       console.error('Error fetching profile:', error)
     }
   }
 
-  // Sign up with role selection
+  // Sign up with role selection and create profile row
   const signUp = async ({ email, password, fullName, role }) => {
     if (isDummyMode) {
       // Simulate signup in dummy mode
@@ -109,23 +122,33 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error
 
-      // Create profile
+      // Create profile row (support both schemas: id or user_id primary key)
       if (data.user) {
-        const { error: profileError } = await supabase
+        const basePayload = {
+          email,
+          full_name: fullName,
+          role,
+          avatar_url: null,
+          bio: '',
+          location: '',
+          rating: null,
+          review_count: 0,
+        }
+
+        // Try with id
+        let profileError = null
+        let insert = await supabase
           .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              email,
-              full_name: fullName,
-              role,
-              avatar_url: null,
-              bio: '',
-              location: '',
-              rating: null,
-              review_count: 0,
-            },
-          ])
+          .insert([{ id: data.user.id, ...basePayload }])
+
+        if (insert.error) {
+          profileError = insert.error
+          // Fallback: try user_id
+          const second = await supabase
+            .from('profiles')
+            .insert([{ user_id: data.user.id, ...basePayload }])
+          if (second.error) profileError = second.error
+        }
 
         if (profileError) throw profileError
       }
