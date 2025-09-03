@@ -14,7 +14,8 @@ export const isSupabaseConfigured = () => {
 
 // Database tables structure (for reference)
 export const TABLES = {
-  PROFILES: 'profiles',
+  USER_PROFILES: 'user_profiles',
+  HOST_PROFILES: 'host_profiles',
   SERVICES: 'services',
   BOOKINGS: 'bookings',
   REVIEWS: 'reviews',

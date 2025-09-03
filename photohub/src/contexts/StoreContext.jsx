@@ -52,22 +52,6 @@ export const StoreProvider = ({ children }) => {
     fetchInitialData()
   }, [isDummyMode])
 
-  const buildAuthHeaders = async () => {
-    const { data: { session } = { session: null } } = await supabase.auth.getSession()
-    const headers = {
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-    }
-    if (session?.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`
-    }
-    return headers
-  }
-
-  const buildUrl = (tableName, params = []) => {
-    const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/${tableName}`
-    const query = ['select=*', ...params].filter(Boolean).join('&')
-    return `${baseUrl}?${query}`
-  }
 
   // Fetch services
   const fetchServices = async (filters = {}) => {
@@ -93,18 +77,14 @@ export const StoreProvider = ({ children }) => {
     }
 
     try {
-      const params = []
-      if (filters.category) params.push(`category=eq.${encodeURIComponent(filters.category)}`)
-      if (filters.subcategory) params.push(`subcategory=eq.${encodeURIComponent(filters.subcategory)}`)
-      if (filters.location) params.push(`location=ilike.${encodeURIComponent('%' + filters.location + '%')}`)
-      if (filters.maxPrice) params.push(`hourly_rate=lte.${encodeURIComponent(filters.maxPrice)}`)
-
-      const url = buildUrl(TABLES.SERVICES, params)
-      const headers = await buildAuthHeaders()
-      const res = await fetch(url, { headers })
-      if (!res.ok) throw new Error(`Failed to fetch services: ${res.status}`)
-      const data = await res.json()
-      return Array.isArray(data) ? data : []
+      let query = supabase.from(TABLES.SERVICES).select('*')
+      if (filters.category) query = query.eq('category', filters.category)
+      if (filters.subcategory) query = query.eq('subcategory', filters.subcategory)
+      if (filters.location) query = query.ilike('location', `%${filters.location}%`)
+      if (filters.maxPrice) query = query.lte('hourly_rate', filters.maxPrice)
+      const { data, error } = await query
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error fetching services:', error)
       return []
@@ -120,14 +100,11 @@ export const StoreProvider = ({ children }) => {
     }
 
     try {
-      const params = []
-      if (userId) params.push(`or=(customer_id.eq.${encodeURIComponent(userId)},host_id.eq.${encodeURIComponent(userId)})`)
-      const url = buildUrl(TABLES.BOOKINGS, params)
-      const headers = await buildAuthHeaders()
-      const res = await fetch(url, { headers })
-      if (!res.ok) throw new Error(`Failed to fetch bookings: ${res.status}`)
-      const data = await res.json()
-      return Array.isArray(data) ? data : []
+      let query = supabase.from(TABLES.BOOKINGS).select('*')
+      if (userId) query = query.or(`user_id.eq.${userId},host_id.eq.${userId}`)
+      const { data, error } = await query
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error fetching bookings:', error)
       return []
@@ -143,14 +120,11 @@ export const StoreProvider = ({ children }) => {
     }
 
     try {
-      const params = []
-      if (serviceId) params.push(`service_id=eq.${encodeURIComponent(serviceId)}`)
-      const url = buildUrl(TABLES.REVIEWS, params)
-      const headers = await buildAuthHeaders()
-      const res = await fetch(url, { headers })
-      if (!res.ok) throw new Error(`Failed to fetch reviews: ${res.status}`)
-      const data = await res.json()
-      return Array.isArray(data) ? data : []
+      let query = supabase.from(TABLES.REVIEWS).select('*')
+      if (serviceId) query = query.eq('service_id', serviceId)
+      const { data, error } = await query
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error fetching reviews:', error)
       return []
