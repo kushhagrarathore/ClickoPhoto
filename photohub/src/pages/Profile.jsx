@@ -3,14 +3,17 @@ import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Star, MapPin, Camera, Calendar } from 'lucide-react'
 import { useStore } from '@/contexts/StoreContext'
+import { useAuth } from '@/contexts/AuthContext'
 import RatingStars from '@/components/ui/RatingStars'
 
 const Profile = () => {
   const { id } = useParams()
   const { services, reviews } = useStore()
+  const { user, profile } = useAuth()
 
-  // In a real app, you'd fetch the profile by ID
-  const profile = {
+  // Use authenticated user's profile if viewing own profile, otherwise fetch by ID
+  const isOwnProfile = user && id === user.id
+  const displayProfile = isOwnProfile ? profile : {
     id: id,
     full_name: 'John Smith',
     email: 'john@example.com',
@@ -26,6 +29,19 @@ const Profile = () => {
   const hostServices = services.filter(s => s.host_id === id)
   const hostReviews = reviews.filter(r => r.host_id === id)
 
+  // If no profile data, show loading or fallback
+  if (!displayProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="card p-8">
+            <p className="text-gray-600">Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,25 +54,41 @@ const Profile = () => {
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             {/* Avatar */}
             <div className="w-24 h-24 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-2xl font-bold">
-                {profile.full_name.charAt(0)}
-              </span>
+              {displayProfile.avatar_url ? (
+                <img 
+                  src={displayProfile.avatar_url} 
+                  alt={displayProfile.full_name}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-white text-2xl font-bold">
+                  {displayProfile.full_name?.charAt(0) || 'U'}
+                </span>
+              )}
             </div>
 
             {/* Profile Info */}
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{profile.full_name}</h1>
-              <p className="text-gray-600 mb-4">{profile.bio}</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {displayProfile.full_name || 'User'}
+              </h1>
+              <p className="text-gray-600 mb-4">
+                {displayProfile.bio || 'No bio available'}
+              </p>
               
               <div className="flex flex-wrap items-center gap-6 text-sm text-gray-600">
-                <div className="flex items-center space-x-1">
-                  <MapPin className="w-4 h-4" />
-                  <span>{profile.location}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RatingStars rating={profile.rating} />
-                  <span>{profile.rating} ({profile.review_count} reviews)</span>
-                </div>
+                {displayProfile.location && (
+                  <div className="flex items-center space-x-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>{displayProfile.location}</span>
+                  </div>
+                )}
+                {displayProfile.rating && (
+                  <div className="flex items-center space-x-2">
+                    <RatingStars rating={displayProfile.rating} />
+                    <span>{displayProfile.rating} ({displayProfile.review_count || 0} reviews)</span>
+                  </div>
+                )}
                 <div className="flex items-center space-x-1">
                   <Camera className="w-4 h-4" />
                   <span>{hostServices.length} services</span>
