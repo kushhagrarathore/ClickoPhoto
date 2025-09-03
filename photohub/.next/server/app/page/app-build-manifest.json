@@ -1,0 +1,28 @@
+{
+  "pages": {
+    "/page": [
+      "static/chunks/420a0_next_dist_6ee32b93._.js",
+      "static/chunks/photohub_src_app_favicon_ico_mjs_829e5305._.js",
+      "static/chunks/[root-of-the-server]__b06d3b20._.css",
+      "static/chunks/photohub_src_d6a2cbf8._.js",
+      "static/chunks/420a0_motion-dom_dist_es_a86a58ba._.js",
+      "static/chunks/420a0_framer-motion_dist_es_5dbdf402._.js",
+      "static/chunks/420a0_tailwind-merge_dist_bundle-mjs_mjs_5320d6a0._.js",
+      "static/chunks/420a0_d4317d3f._.js",
+      "static/chunks/photohub_src_app_layout_tsx_a01d95ec._.js",
+      "static/chunks/420a0_next_dist_client_components_builtin_global-error_2383c379.js",
+      "static/chunks/photohub_src_1671157d._.js",
+      "static/chunks/420a0_lucide-react_dist_esm_icons_27a8bd88._.js",
+      "static/chunks/photohub_src_app_page_tsx_2383c379._.js",
+      "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_1c1dc217._.js",
+      "static/chunks/420a0_next_dist_compiled_react-dom_3a9ad40e._.js",
+      "static/chunks/420a0_next_dist_compiled_next-devtools_index_5067571a.js",
+      "static/chunks/420a0_next_dist_compiled_591e4cee._.js",
+      "static/chunks/420a0_next_dist_client_a40924fe._.js",
+      "static/chunks/420a0_next_dist_67866b45._.js",
+      "static/chunks/420a0_@swc_helpers_cjs_54bfa1c9._.js",
+      "static/chunks/photohub_a0ff3932._.js",
+      "static/chunks/turbopack-photohub_f20e34eb._.js"
+    ]
+  }
+}
