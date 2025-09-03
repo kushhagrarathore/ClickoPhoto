@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
-  Settings, 
+  Settings as SettingsIcon, 
   Lock, 
   Shield, 
   Bell, 
@@ -135,7 +135,7 @@ const Settings = () => {
   }
 
   const tabs = [
-    { id: 'account', name: 'Account', icon: Settings },
+    { id: 'account', name: 'Account', icon: SettingsIcon },
     { id: 'security', name: 'Security', icon: Shield },
     { id: 'notifications', name: 'Notifications', icon: Bell },
     { id: 'danger', name: 'Danger Zone', icon: AlertTriangle }

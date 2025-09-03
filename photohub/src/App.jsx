@@ -25,7 +25,7 @@ import Bookings from './pages/host-dashboard/Bookings'
 import Earnings from './pages/host-dashboard/Earnings'
 import Reviews from './pages/host-dashboard/Reviews'
 import HostProfile from './pages/host-dashboard/Profile'
-import Settings from './pages/host-dashboard/Settings'
+import HostSettings from './pages/host-dashboard/Settings'
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -125,7 +125,7 @@ function App() {
               <Route path="earnings" element={<Earnings />} />
               <Route path="reviews" element={<Reviews />} />
               <Route path="profile" element={<HostProfile />} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="settings" element={<HostSettings />} />
             </Route>
 
             {/* Legacy host dashboard route - redirect to new structure */}
