@@ -1,74 +1,63 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Star } from 'lucide-react'
 
-const RatingStars = ({ 
-  rating = 0, 
-  size = 'md', 
-  interactive = false, 
-  onRatingChange,
-  showValue = true 
-}) => {
-  const [hoverRating, setHoverRating] = useState(0)
-  const [selectedRating, setSelectedRating] = useState(rating)
+const RatingStars = ({ rating, size = 'md', showNumber = false }) => {
+  const stars = []
+  const fullStars = Math.floor(rating)
+  const hasHalfStar = rating % 1 !== 0
 
+  // Size classes
   const sizeClasses = {
     sm: 'w-3 h-3',
     md: 'w-4 h-4',
     lg: 'w-5 h-5',
-    xl: 'w-6 h-6',
+    xl: 'w-6 h-6'
   }
 
-  const handleStarClick = (starValue) => {
-    if (interactive) {
-      setSelectedRating(starValue)
-      onRatingChange?.(starValue)
-    }
+  // Add full stars
+  for (let i = 0; i < fullStars; i++) {
+    stars.push(
+      <Star
+        key={`full-${i}`}
+        className={`${sizeClasses[size]} text-yellow-400 fill-current`}
+      />
+    )
   }
 
-  const handleStarHover = (starValue) => {
-    if (interactive) {
-      setHoverRating(starValue)
-    }
+  // Add half star if needed
+  if (hasHalfStar) {
+    stars.push(
+      <div key="half" className="relative">
+        <Star
+          className={`${sizeClasses[size]} text-gray-300 fill-current`}
+        />
+        <div className="absolute inset-0 overflow-hidden">
+          <Star
+            className={`${sizeClasses[size]} text-yellow-400 fill-current`}
+            style={{ clipPath: 'inset(0 50% 0 0)' }}
+          />
+        </div>
+      </div>
+    )
   }
 
-  const handleMouseLeave = () => {
-    if (interactive) {
-      setHoverRating(0)
-    }
+  // Add empty stars
+  const emptyStars = 5 - Math.ceil(rating)
+  for (let i = 0; i < emptyStars; i++) {
+    stars.push(
+      <Star
+        key={`empty-${i}`}
+        className={`${sizeClasses[size]} text-gray-300`}
+      />
+    )
   }
-
-  const displayRating = interactive ? (hoverRating || selectedRating) : rating
 
   return (
     <div className="flex items-center space-x-1">
-      <div 
-        className="flex items-center"
-        onMouseLeave={handleMouseLeave}
-      >
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type={interactive ? 'button' : undefined}
-            onClick={() => handleStarClick(star)}
-            onMouseEnter={() => handleStarHover(star)}
-            className={`${
-              interactive ? 'cursor-pointer' : 'cursor-default'
-            } transition-colors`}
-            disabled={!interactive}
-          >
-            <Star
-              className={`${sizeClasses[size]} ${
-                star <= displayRating
-                  ? 'fill-yellow-400 text-yellow-400'
-                  : 'text-gray-300'
-              }`}
-            />
-          </button>
-        ))}
-      </div>
-      {showValue && (
-        <span className="text-sm text-gray-600 ml-1">
-          {displayRating.toFixed(1)}
+      {stars}
+      {showNumber && (
+        <span className="ml-2 text-sm text-gray-600">
+          {rating.toFixed(1)}
         </span>
       )}
     </div>

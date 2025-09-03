@@ -122,9 +122,17 @@ export const AuthProvider = ({ children }) => {
               user_id: data.user.id,
               email,
               full_name: fullName,
-              avatar_url: null,
+              role, // Include role in profile
+              avatar_url: avatarUrl || null,
               phone: null,
               location: null,
+              bio: null,
+              business_name: null,
+              website: null,
+              availability: true,
+              specializations: [],
+              experience_years: null,
+              equipment: null,
               is_verified: false,
             },
           ])
@@ -191,9 +199,9 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update(updates)
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .select()
         .single()
 
@@ -202,6 +210,46 @@ export const AuthProvider = ({ children }) => {
       return { data, error: null }
     } catch (error) {
       return { data: null, error: error.message }
+    }
+  }
+
+  // Update password
+  const updatePassword = async (currentPassword, newPassword) => {
+    if (isDummyMode) {
+      // Simulate password update in dummy mode
+      return { error: null }
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+      
+      if (error) throw error
+      return { error: null }
+    } catch (error) {
+      return { error: error.message }
+    }
+  }
+
+  // Update email
+  const updateEmail = async (newEmail, currentPassword) => {
+    if (isDummyMode) {
+      // Simulate email update in dummy mode
+      const updatedUser = { ...user, email: newEmail }
+      setUser(updatedUser)
+      return { error: null }
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail
+      })
+      
+      if (error) throw error
+      return { error: null }
+    } catch (error) {
+      return { error: error.message }
     }
   }
 
@@ -214,6 +262,8 @@ export const AuthProvider = ({ children }) => {
     signIn,
     signOut,
     updateProfile,
+    updatePassword,
+    updateEmail,
   }
 
   return (
