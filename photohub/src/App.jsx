@@ -17,6 +17,12 @@ import BookingPage from './pages/BookingPage'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
 import UserDashboard from './pages/UserDashboard'
+import CustomerBookings from './pages/customer-dashboard/Bookings'
+import CustomerReviews from './pages/customer-dashboard/Reviews'
+import CustomerMessages from './pages/customer-dashboard/Messages'
+import CustomerPayments from './pages/customer-dashboard/Payments'
+import CustomerProfile from './pages/customer-dashboard/Profile'
+import CustomerSettings from './pages/customer-dashboard/Settings'
 
 // Host Dashboard Components
 import HostDashboardLayout from './components/layout/HostDashboardLayout'
@@ -148,6 +154,68 @@ function App() {
                 <ProtectedRoute allowedRoles={["customer"]}>
                   <PageTransition>
                     <UserDashboard />
+                  </PageTransition>
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Customer pages */}
+            <Route 
+              path="/customer/bookings" 
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <PageTransition>
+                    <CustomerBookings />
+                  </PageTransition>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/customer/reviews" 
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <PageTransition>
+                    <CustomerReviews />
+                  </PageTransition>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/customer/messages" 
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <PageTransition>
+                    <CustomerMessages />
+                  </PageTransition>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/customer/payments" 
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <PageTransition>
+                    <CustomerPayments />
+                  </PageTransition>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/customer/profile" 
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <PageTransition>
+                    <CustomerProfile />
+                  </PageTransition>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/customer/settings" 
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <PageTransition>
+                    <CustomerSettings />
                   </PageTransition>
                 </ProtectedRoute>
               } 
