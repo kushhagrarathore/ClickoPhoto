@@ -16,14 +16,18 @@ import {
 import { useStore } from '@/contexts/StoreContext'
 import { useAuth } from '@/contexts/AuthContext'
 
+// Minimal India states list (extend as needed)
+const INDIA_STATES = [
+  'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu and Kashmir','Ladakh','Puducherry','Chandigarh','Andaman and Nicobar Islands','Dadra and Nagar Haveli and Daman and Diu','Lakshadweep']
+
 const Services = () => {
   const { services, createService, updateService } = useStore()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingService, setEditingService] = useState(null)
 
-  // Filter services for current host
-  const hostServices = services.filter(s => s.host_id === user?.id)
+  // Filter services for current host (use host profile id)
+  const hostServices = services.filter(s => s.host_id === profile?.id)
 
   const [formData, setFormData] = useState({
     title: '',
@@ -34,7 +38,8 @@ const Services = () => {
     hourly_rate: '',
     daily_rate: '',
     fixed_rate: '',
-    location: '',
+    city: '',
+    state: '',
     is_available: true
   })
 
@@ -49,9 +54,12 @@ const Services = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    const location = [formData.city, formData.state].filter(Boolean).join(', ')
+
     const serviceData = {
       ...formData,
-      host_id: user.id,
+      host_id: profile?.id, // host_profiles.id, not auth user id
+      location,
       hourly_rate: formData.pricing_type === 'HOURLY' ? parseFloat(formData.hourly_rate) : null,
       daily_rate: formData.pricing_type === 'DAILY' ? parseFloat(formData.daily_rate) : null,
       fixed_rate: formData.pricing_type === 'FIXED' ? parseFloat(formData.fixed_rate) : null,
@@ -73,7 +81,8 @@ const Services = () => {
       hourly_rate: '',
       daily_rate: '',
       fixed_rate: '',
-      location: '',
+      city: '',
+      state: '',
       is_available: true
     })
     setShowAddForm(false)
@@ -81,6 +90,19 @@ const Services = () => {
 
   const handleEdit = (service) => {
     setEditingService(service)
+    // Attempt to split existing location as "City, State"
+    let city = ''
+    let state = ''
+    if (service.location) {
+      const parts = service.location.split(',').map(p => p.trim())
+      if (parts.length >= 2) {
+        city = parts[0]
+        state = parts.slice(1).join(', ')
+      } else {
+        city = service.location
+      }
+    }
+
     setFormData({
       title: service.title || '',
       description: service.description || '',
@@ -90,7 +112,8 @@ const Services = () => {
       hourly_rate: service.hourly_rate || '',
       daily_rate: service.daily_rate || '',
       fixed_rate: service.fixed_rate || '',
-      location: service.location || '',
+      city,
+      state,
       is_available: service.is_available !== false
     })
     setShowAddForm(true)
@@ -99,11 +122,11 @@ const Services = () => {
   const getPricingDisplay = (service) => {
     switch (service.pricing_type) {
       case 'HOURLY':
-        return `$${service.hourly_rate}/hr`
+        return `₹${service.hourly_rate}/hr`
       case 'DAILY':
-        return `$${service.daily_rate}/day`
+        return `₹${service.daily_rate}/day`
       case 'FIXED':
-        return `$${service.fixed_rate}`
+        return `₹${service.fixed_rate}`
       default:
         return 'Price not set'
     }
@@ -152,7 +175,8 @@ const Services = () => {
                     hourly_rate: '',
                     daily_rate: '',
                     fixed_rate: '',
-                    location: '',
+                    city: '',
+                    state: '',
                     is_available: true
                   })
                 }}
@@ -213,16 +237,33 @@ const Services = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location
+                    City
                   </label>
                   <input
                     type="text"
-                    name="location"
-                    value={formData.location}
+                    name="city"
+                    value={formData.city}
                     onChange={handleInputChange}
                     className="input-field w-full"
-                    placeholder="e.g., San Francisco, CA"
+                    placeholder="e.g., Mumbai"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    State
+                  </label>
+                  <select
+                    name="state"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    className="input-field w-full"
+                  >
+                    <option value="">Select State</option>
+                    {INDIA_STATES.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

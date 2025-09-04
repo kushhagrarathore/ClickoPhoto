@@ -16,11 +16,11 @@ import { useAuth } from '@/contexts/AuthContext'
 
 const Bookings = () => {
   const { bookings, updateBookingStatus } = useStore()
-  const { user } = useAuth()
+  const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState('upcoming')
 
-  // Filter bookings for current host
-  const hostBookings = bookings.filter(b => b.host_id === user?.id)
+  // Filter bookings for current host (use host profile id)
+  const hostBookings = bookings.filter(b => b.host_id === profile?.id)
 
   const tabs = [
     { id: 'upcoming', name: 'Upcoming', count: 0 },
