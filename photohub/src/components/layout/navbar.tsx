@@ -5,7 +5,7 @@ import { useLocation, Link } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Camera, Menu, X, User, LogOut, Search, Bell } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,10 +18,10 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 const navigation = [
-  { name: "Photographers", href: "/search?service=photography" },
-  { name: "Studios", href: "/search?service=studio" },
-  { name: "Drones", href: "/search?service=drone" },
-  { name: "Events", href: "/search?service=events" },
+  { name: "Photographers", to: "/search?service=photography" },
+  { name: "Studios", to: "/search?service=studio" },
+  { name: "Drones", to: "/search?service=drone" },
+  { name: "Events", to: "/search?service=events" },
 ]
 
 export function Navbar() {
@@ -66,7 +66,7 @@ export function Navbar() {
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >
-          <Link href="/" className="-m-1.5 p-1.5">
+          <Link to="/" className="-m-1.5 p-1.5">
             <span className="sr-only">PhotoHub</span>
             <div className="flex items-center space-x-3">
               <div className="relative">
@@ -86,15 +86,13 @@ export function Navbar() {
         
         {/* Mobile menu button */}
         <div className="flex lg:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={() => setMobileMenuOpen(true)}
-            className="relative"
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "relative")}
+            aria-label="Open main menu"
           >
-            <span className="sr-only">Open main menu</span>
             <Menu className="h-6 w-6" aria-hidden="true" />
-          </Button>
+          </button>
         </div>
         
         {/* Desktop Navigation */}
@@ -107,14 +105,14 @@ export function Navbar() {
               transition={{ duration: 0.3, delay: index * 0.1 }}
             >
               <Link
-                href={item.href}
+                to={item.to}
                 className={cn(
                   "relative text-sm font-medium leading-6 text-gray-700 hover:text-blue-600 transition-colors duration-200 px-3 py-2 rounded-lg",
-                  pathname === item.href && "text-blue-600 bg-blue-50"
+                  pathname === item.to && "text-blue-600 bg-blue-50"
                 )}
               >
                 {item.name}
-                {pathname === item.href && (
+                {pathname === item.to && (
                   <motion.div
                     className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"
                     layoutId="navbar-indicator"
@@ -139,26 +137,28 @@ export function Navbar() {
           </div>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
+          <button className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "relative")}
+            aria-label="Notifications">
             <Bell className="h-5 w-5" />
             <motion.div
               className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             />
-          </Button>
+          </button>
 
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-gray-100">
+                <button className={cn(buttonVariants({ variant: "ghost" }), "relative h-9 w-9 rounded-full hover:bg-gray-100")}
+                  aria-label="Open profile menu">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={user.image || ""} alt={user.name} />
                     <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
                       {user.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
-                </Button>
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-64 mt-2" align="end" forceMount>
                 <div className="flex items-center gap-3 p-3 border-b border-gray-100">
@@ -174,13 +174,13 @@ export function Navbar() {
                   </div>
                 </div>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/profile" className="flex items-center gap-2 p-2">
+                  <Link to="/profile" className="flex items-center gap-2 p-2">
                     <User className="h-4 w-4" />
                     <span>Profile</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/bookings" className="flex items-center gap-2 p-2">
+                  <Link to="/bookings" className="flex items-center gap-2 p-2">
                     <Camera className="h-4 w-4" />
                     <span>My Bookings</span>
                   </Link>
@@ -194,12 +194,8 @@ export function Navbar() {
             </DropdownMenu>
           ) : (
             <div className="flex gap-x-3">
-              <Button variant="ghost" asChild>
-                <Link href="/auth">Sign in</Link>
-              </Button>
-              <Button variant="gradient" asChild>
-                <Link href="/auth">Sign up</Link>
-              </Button>
+              <Link to="/auth" className={buttonVariants({ variant: "ghost" })}>Sign in</Link>
+              <Link to="/auth" className={buttonVariants({ variant: "gradient" })}>Sign up</Link>
             </div>
           )}
         </div>
@@ -222,21 +218,20 @@ export function Navbar() {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
               <div className="flex items-center justify-between">
-                <Link href="/" className="-m-1.5 p-1.5">
+                <Link to="/" className="-m-1.5 p-1.5">
                   <span className="sr-only">PhotoHub</span>
                   <div className="flex items-center space-x-2">
                     <Camera className="h-8 w-8 text-blue-600" />
                     <span className="text-xl font-bold text-gray-900">PhotoHub</span>
                   </div>
                 </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
                   onClick={() => setMobileMenuOpen(false)}
+                  className={buttonVariants({ variant: "ghost", size: "icon" })}
+                  aria-label="Close menu"
                 >
-                  <span className="sr-only">Close menu</span>
                   <X className="h-6 w-6" aria-hidden="true" />
-                </Button>
+                </button>
               </div>
               
               {/* Mobile Search */}
@@ -257,10 +252,10 @@ export function Navbar() {
                     {navigation.map((item) => (
                       <Link
                         key={item.name}
-                        href={item.href}
+                        to={item.to}
                         className={cn(
                           "-mx-3 block rounded-lg px-3 py-2 text-base font-medium leading-7 text-gray-900 hover:bg-gray-50 transition-colors",
-                          pathname === item.href && "bg-blue-50 text-blue-600"
+                          pathname === item.to && "bg-blue-50 text-blue-600"
                         )}
                         onClick={() => setMobileMenuOpen(false)}
                       >
@@ -283,25 +278,19 @@ export function Navbar() {
                             <p className="text-xs text-gray-500">{user.email}</p>
                           </div>
                         </div>
-                        <Button variant="ghost" className="w-full justify-start" asChild>
-                          <Link href="/profile">
-                            <User className="mr-2 h-4 w-4" />
-                            Profile
-                          </Link>
-                        </Button>
-                        <Button variant="ghost" className="w-full justify-start text-red-600">
+                        <Link to="/profile" className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start inline-flex")}> 
+                          <User className="mr-2 h-4 w-4" />
+                          Profile
+                        </Link>
+                        <button className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start text-red-600 inline-flex")}> 
                           <LogOut className="mr-2 h-4 w-4" />
                           Log out
-                        </Button>
+                        </button>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <Button variant="ghost" className="w-full" asChild>
-                          <Link href="/auth">Sign in</Link>
-                        </Button>
-                        <Button variant="gradient" className="w-full" asChild>
-                          <Link href="/auth">Sign up</Link>
-                        </Button>
+                        <Link to="/auth" className={cn(buttonVariants({ variant: "ghost" }), "w-full inline-flex justify-center")}>Sign in</Link>
+                        <Link to="/auth" className={cn(buttonVariants({ variant: "gradient" }), "w-full inline-flex justify-center")}>Sign up</Link>
                       </div>
                     )}
                   </div>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from './contexts/AuthContext'
 
@@ -16,6 +16,7 @@ import ServiceListing from './pages/ServiceListing'
 import BookingPage from './pages/BookingPage'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
+import UserDashboard from './pages/UserDashboard'
 
 // Host Dashboard Components
 import HostDashboardLayout from './components/layout/HostDashboardLayout'
@@ -64,10 +65,12 @@ const PageTransition = ({ children }) => (
 
 function App() {
   const { user, profile } = useAuth()
+  const location = useLocation()
+  const isHostDashboardRoute = location.pathname.startsWith('/host-dashboard')
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar />
+      {!isHostDashboardRoute && <Navbar />}
       
       <main className="flex-1">
         <AnimatePresence mode="wait">
@@ -138,14 +141,24 @@ function App() {
               } 
             />
             
-            {/* Customer Dashboard Route */}
+            {/* New User Dashboard Route for customers */}
+            <Route 
+              path="/user-dashboard" 
+              element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <PageTransition>
+                    <UserDashboard />
+                  </PageTransition>
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Backward compatibility: redirect old customer path */}
             <Route 
               path="/customer/dashboard" 
               element={
                 <ProtectedRoute allowedRoles={['customer']}>
-                  <PageTransition>
-                    <CustomerDashboard />
-                  </PageTransition>
+                  <Navigate to="/user-dashboard" replace />
                 </ProtectedRoute>
               } 
             />
@@ -166,10 +179,16 @@ function App() {
               path="/dashboard" 
               element={
                 <ProtectedRoute>
-                  {profile?.role === 'host' ? (
-                    <Navigate to="/host-dashboard" replace />
+                  {profile?.role ? (
+                    profile.role === 'host' ? (
+                      <Navigate to="/host-dashboard" replace />
+                    ) : (
+                      <Navigate to="/user-dashboard" replace />
+                    )
                   ) : (
-                    <Navigate to="/customer/dashboard" replace />
+                    <div className="min-h-[200px] flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+                    </div>
                   )}
                 </ProtectedRoute>
               } 
@@ -188,7 +207,7 @@ function App() {
         </AnimatePresence>
       </main>
       
-      <Footer />
+      {!isHostDashboardRoute && <Footer />}
     </div>
   )
 }

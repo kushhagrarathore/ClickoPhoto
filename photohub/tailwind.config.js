@@ -36,9 +36,34 @@ export default {
           800: '#1e293b',
           900: '#0f172a',
         },
+        success: {
+          100: '#dcfce7',
+          500: '#16a34a',
+          600: '#15803d',
+        },
+        warning: {
+          100: '#fef9c3',
+          500: '#eab308',
+          600: '#ca8a04',
+        },
+        danger: {
+          100: '#fee2e2',
+          500: '#ef4444',
+          600: '#dc2626',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Poppins', 'Inter', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: {
+        xl: '1rem',
+        '2xl': '1.25rem',
+        '3xl': '1.5rem',
+      },
+      boxShadow: {
+        soft: '0 2px 10px rgba(0, 0, 0, 0.06)',
+        'elevated': '0 8px 24px rgba(0, 0, 0, 0.08)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

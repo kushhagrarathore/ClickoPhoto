@@ -20,18 +20,50 @@ const Navbar = () => {
   const location = useLocation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
   const handleSignOut = async () => {
-    const { error } = await signOut()
-    if (!error) {
-      navigate('/')
+    if (signingOut) return
+    setSigningOut(true)
+    console.log('Sign out button clicked')
+    try {
+      // Optimistically close UI and clear local session
       setIsDropdownOpen(false)
+      try {
+        localStorage.removeItem('supabase_session')
+        const keysToRemove = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && key.startsWith('sb-') && key.includes('auth')) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k))
+      } catch {}
+
+      // Call backend sign out with timeout fallback
+      const signOutPromise = signOut()
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000))
+      await Promise.race([signOutPromise, timeoutPromise])
+      console.log('Sign out result: attempted')
+
+      // Navigate to auth and hard reload to ensure clean state
+      navigate('/auth', { replace: true })
+      setTimeout(() => {
+        if (window?.location?.pathname !== '/auth') {
+          window.location.href = '/auth'
+        }
+      }, 200)
+    } catch (err) {
+      console.error('Sign out error:', err)
+      navigate('/auth', { replace: true })
+    } finally {
+      setSigningOut(false)
     }
   }
 
   const navItems = [
     { name: 'Home', path: '/' },
-    { name: 'Services', path: '/services' },
   ]
 
   const isActive = (path) => location.pathname === path
@@ -123,10 +155,11 @@ const Navbar = () => {
                         <hr className="my-1" />
                         <button
                           onClick={handleSignOut}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          disabled={signingOut}
+                          className={`flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 ${signingOut ? 'opacity-60 cursor-not-allowed' : ''}`}
                         >
                           <LogOut className="w-4 h-4 mr-3" />
-                          Sign Out
+                          {signingOut ? 'Signing out…' : 'Sign Out'}
                         </button>
                       </motion.div>
                     )}

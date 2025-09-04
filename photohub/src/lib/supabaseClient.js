@@ -4,8 +4,14 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co'
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
 
-// Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create Supabase client with auth persistence
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+})
 
 // Check if Supabase is properly configured
 export const isSupabaseConfigured = () => {
@@ -14,8 +20,9 @@ export const isSupabaseConfigured = () => {
 
 // Database tables structure (for reference)
 export const TABLES = {
-  USER_PROFILES: 'user_profiles',
-  HOST_PROFILES: 'host_profiles',
+  PROFILES: 'user_profiles',
+  PROVIDERS: 'providers',
+  CUSTOMERS: 'customers',
   SERVICES: 'services',
   BOOKINGS: 'bookings',
   REVIEWS: 'reviews',
@@ -24,16 +31,16 @@ export const TABLES = {
 // Row Level Security (RLS) policies should be set up in Supabase:
 /*
 -- Enable RLS
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 
--- Profiles policies
-CREATE POLICY "Users can view their own profile" ON profiles
+-- User profiles policies
+CREATE POLICY "Users can view their own profile" ON user_profiles
   FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Users can update their own profile" ON profiles
+CREATE POLICY "Users can update their own profile" ON user_profiles
   FOR UPDATE USING (auth.uid() = id);
 
 -- Services policies
