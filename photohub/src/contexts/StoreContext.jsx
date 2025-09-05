@@ -57,31 +57,38 @@ export const StoreProvider = ({ children }) => {
   const fetchServices = async (filters = {}) => {
     if (isDummyMode) {
       let filteredServices = [...dummyServices]
-      
+  
       if (filters.category) {
         filteredServices = filteredServices.filter(s => s.category === filters.category)
       }
       if (filters.subcategory) {
         filteredServices = filteredServices.filter(s => s.subcategory === filters.subcategory)
       }
-      if (filters.location) {
-        filteredServices = filteredServices.filter(s => 
-          s.location.toLowerCase().includes(filters.location.toLowerCase())
+      if (filters.city) {
+        filteredServices = filteredServices.filter(s =>
+          s.city?.toLowerCase().includes(filters.city.toLowerCase())
+        )
+      }
+      if (filters.state) {
+        filteredServices = filteredServices.filter(s =>
+          s.state?.toLowerCase().includes(filters.state.toLowerCase())
         )
       }
       if (filters.maxPrice) {
         filteredServices = filteredServices.filter(s => s.hourly_rate <= filters.maxPrice)
       }
-      
+  
       return filteredServices
     }
-
+  
     try {
       let query = supabase.from(TABLES.SERVICES).select('*')
       if (filters.category) query = query.eq('category', filters.category)
       if (filters.subcategory) query = query.eq('subcategory', filters.subcategory)
-      if (filters.location) query = query.ilike('location', `%${filters.location}%`)
+      if (filters.city) query = query.ilike('city', `%${filters.city}%`)
+      if (filters.state) query = query.ilike('state', `%${filters.state}%`)
       if (filters.maxPrice) query = query.lte('hourly_rate', filters.maxPrice)
+  
       const { data, error } = await query
       if (error) throw error
       return data || []
@@ -90,6 +97,7 @@ export const StoreProvider = ({ children }) => {
       return []
     }
   }
+  
 
   // Fetch bookings
   const fetchBookings = async (userId = null) => {
@@ -185,6 +193,27 @@ export const StoreProvider = ({ children }) => {
       return { data, error: null }
     } catch (error) {
       return { data: null, error: error.message }
+    }
+  }
+
+  // Delete service
+  const deleteService = async (serviceId) => {
+    if (isDummyMode) {
+      setServices(prev => prev.filter(s => s.id !== serviceId))
+      return { error: null }
+    }
+
+    try {
+      const { error } = await supabase
+        .from(TABLES.SERVICES)
+        .delete()
+        .eq('id', serviceId)
+
+      if (error) throw error
+      setServices(prev => prev.filter(s => s.id !== serviceId))
+      return { error: null }
+    } catch (error) {
+      return { error: error.message }
     }
   }
 
@@ -296,6 +325,7 @@ export const StoreProvider = ({ children }) => {
     fetchReviews,
     createService,
     updateService,
+    deleteService,
     createBooking,
     updateBookingStatus,
     createReview,

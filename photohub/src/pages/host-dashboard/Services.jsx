@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Plus, Edit, Trash2, Eye, EyeOff, Package, DollarSign, Calendar, Star, MapPin, X
@@ -12,7 +13,7 @@ const INDIA_STATES = [
 ]
 
 const Services = () => {
-  const { services, createService, updateService } = useStore()
+  const { services, createService, updateService, deleteService } = useStore()
   const { user, profile } = useAuth()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingService, setEditingService] = useState(null)
@@ -63,10 +64,12 @@ const Services = () => {
       if (editingService) {
         const { error } = await updateService(editingService.id, serviceData)
         if (error) throw new Error(error)
+        toast.success('Service updated successfully ✅')
         setEditingService(null)
       } else {
         const { error } = await createService(serviceData)
         if (error) throw new Error(error)
+        toast.success('Service created successfully 🎉')
       }
 
       setFormData({
@@ -84,8 +87,9 @@ const Services = () => {
       images: []
     })
       setShowAddForm(false)
-      setSubmitState({ loading: false, error: '', success: 'Service saved successfully' })
+      setSubmitState({ loading: false, error: '', success: '' })
     } catch (err) {
+      toast.error(`Error: ${err.message}`)
       setSubmitState({ loading: false, error: err.message || 'Failed to save service', success: '' })
     }
   }
@@ -526,9 +530,26 @@ const Services = () => {
                     )}
                   </span>
 
-                  <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-                    View Details
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      className="text-sm text-red-600 hover:text-red-700 font-medium"
+                      onClick={async () => {
+                        if (confirm('Delete this service? This action cannot be undone.')) {
+                          const { error } = await deleteService(service.id)
+                          if (error) {
+                            toast.error(error)
+                          } else {
+                            toast.success('Deleted successfully 🗑️')
+                          }
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                    <button className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                      View Details
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>

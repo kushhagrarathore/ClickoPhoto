@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from './contexts/AuthContext'
+import { Toaster } from 'react-hot-toast'
 
 // Layout Components
 import Navbar from './components/layout/Navbar'
@@ -276,6 +277,7 @@ function App() {
       </main>
       
       {!isHostDashboardRoute && <Footer />}
+      <Toaster position="top-right" reverseOrder={false} />
     </div>
   )
 }
