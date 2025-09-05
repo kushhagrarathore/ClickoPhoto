@@ -78,6 +78,8 @@ const Bookings = () => {
 
   const currentBookings = getCurrentBookings()
 
+  const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -195,7 +197,7 @@ const Bookings = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${booking.total_amount?.toLocaleString() || '0'}
+                        {booking.total_amount != null ? inr.format(booking.total_amount) : inr.format(0)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
@@ -309,7 +311,7 @@ const Bookings = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${hostBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0).toLocaleString()}
+                {inr.format(hostBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0))}
               </p>
             </div>
           </div>

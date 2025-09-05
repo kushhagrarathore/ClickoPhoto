@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext'
 const Dashboard = () => {
   const { bookings, services, reviews } = useStore()
   const { user } = useAuth()
+  const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
 
   // Filter data for current host
   const hostBookings = bookings.filter(b => b.host_id === user?.id)
@@ -69,7 +70,7 @@ const Dashboard = () => {
     },
     {
       title: 'Total Revenue',
-      value: `$${totalRevenue.toLocaleString()}`,
+      value: inr.format(totalRevenue),
       icon: DollarSign,
       color: 'bg-green-500',
       change: '+8%',
@@ -216,7 +217,7 @@ const Dashboard = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${booking.total_amount?.toLocaleString() || '0'}
+                      {inr.format(booking.total_amount || 0)}
                     </td>
                   </tr>
                 ))

@@ -1,30 +1,24 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  EyeOff,
-  Package,
-  DollarSign,
-  Calendar,
-  Star,
-  MapPin,
-  X
+  Plus, Edit, Trash2, Eye, EyeOff, Package, DollarSign, Calendar, Star, MapPin, X
 } from 'lucide-react'
 import { useStore } from '@/contexts/StoreContext'
 import { useAuth } from '@/contexts/AuthContext'
 
 // Minimal India states list (extend as needed)
 const INDIA_STATES = [
-  'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu and Kashmir','Ladakh','Puducherry','Chandigarh','Andaman and Nicobar Islands','Dadra and Nagar Haveli and Daman and Diu','Lakshadweep']
+  'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu and Kashmir','Ladakh','Puducherry','Chandigarh','Andaman and Nicobar Islands','Dadra and Nagar Haveli and Daman and Diu','Lakshadweep'
+]
 
 const Services = () => {
   const { services, createService, updateService } = useStore()
   const { user, profile } = useAuth()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingService, setEditingService] = useState(null)
+  const [activeImage, setActiveImage] = useState({})
+  const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0 })
+  const [submitState, setSubmitState] = useState({ loading: false, error: '', success: '' })
 
   // Filter services for current host (use host profile id)
   const hostServices = services.filter(s => s.host_id === profile?.id)
@@ -40,7 +34,8 @@ const Services = () => {
     fixed_rate: '',
     city: '',
     state: '',
-    is_available: true
+    is_available: true,
+    images: []
   })
 
   const handleInputChange = (e) => {
@@ -53,26 +48,31 @@ const Services = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitState({ loading: true, error: '', success: '' })
     
     const location = [formData.city, formData.state].filter(Boolean).join(', ')
 
     const serviceData = {
       ...formData,
-      host_id: profile?.id, // host_profiles.id, not auth user id
+      host_id: profile?.id,
       location,
       hourly_rate: formData.pricing_type === 'HOURLY' ? parseFloat(formData.hourly_rate) : null,
       daily_rate: formData.pricing_type === 'DAILY' ? parseFloat(formData.daily_rate) : null,
       fixed_rate: formData.pricing_type === 'FIXED' ? parseFloat(formData.fixed_rate) : null,
+      images: formData.images.filter(link => link.trim() !== '')
     }
 
-    if (editingService) {
-      await updateService(editingService.id, serviceData)
-      setEditingService(null)
-    } else {
-      await createService(serviceData)
-    }
+    try {
+      if (editingService) {
+        const { error } = await updateService(editingService.id, serviceData)
+        if (error) throw new Error(error)
+        setEditingService(null)
+      } else {
+        const { error } = await createService(serviceData)
+        if (error) throw new Error(error)
+      }
 
-    setFormData({
+      setFormData({
       title: '',
       description: '',
       category: '',
@@ -83,14 +83,18 @@ const Services = () => {
       fixed_rate: '',
       city: '',
       state: '',
-      is_available: true
+      is_available: true,
+      images: []
     })
-    setShowAddForm(false)
+      setShowAddForm(false)
+      setSubmitState({ loading: false, error: '', success: 'Service saved successfully' })
+    } catch (err) {
+      setSubmitState({ loading: false, error: err.message || 'Failed to save service', success: '' })
+    }
   }
 
   const handleEdit = (service) => {
     setEditingService(service)
-    // Attempt to split existing location as "City, State"
     let city = ''
     let state = ''
     if (service.location) {
@@ -114,21 +118,27 @@ const Services = () => {
       fixed_rate: service.fixed_rate || '',
       city,
       state,
-      is_available: service.is_available !== false
+      is_available: service.is_available !== false,
+      images: service.images || []
     })
     setShowAddForm(true)
   }
 
+  const formatINR = (value) => {
+    if (value === null || value === undefined) return ''
+    try {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
+    } catch {
+      return `₹${value}`
+    }
+  }
+
   const getPricingDisplay = (service) => {
     switch (service.pricing_type) {
-      case 'HOURLY':
-        return `₹${service.hourly_rate}/hr`
-      case 'DAILY':
-        return `₹${service.daily_rate}/day`
-      case 'FIXED':
-        return `₹${service.fixed_rate}`
-      default:
-        return 'Price not set'
+      case 'HOURLY': return `${formatINR(service.hourly_rate)}/hr`
+      case 'DAILY': return `${formatINR(service.daily_rate)}/day`
+      case 'FIXED': return `${formatINR(service.fixed_rate)}`
+      default: return 'Price not set'
     }
   }
 
@@ -177,7 +187,8 @@ const Services = () => {
                     fixed_rate: '',
                     city: '',
                     state: '',
-                    is_available: true
+                    is_available: true,
+                    images: []
                   })
                 }}
                 className="text-gray-400 hover:text-gray-600"
@@ -188,10 +199,9 @@ const Services = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Title */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Service Title *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Title *</label>
                   <input
                     type="text"
                     name="title"
@@ -203,10 +213,9 @@ const Services = () => {
                   />
                 </div>
 
+                {/* Category */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                   <select
                     name="category"
                     value={formData.category}
@@ -221,10 +230,9 @@ const Services = () => {
                   </select>
                 </div>
 
+                {/* Subcategory */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subcategory
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
                   <input
                     type="text"
                     name="subcategory"
@@ -235,10 +243,9 @@ const Services = () => {
                   />
                 </div>
 
+                {/* City */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
                   <input
                     type="text"
                     name="city"
@@ -249,10 +256,9 @@ const Services = () => {
                   />
                 </div>
 
+                {/* State */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    State
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
                   <select
                     name="state"
                     value={formData.state}
@@ -266,10 +272,9 @@ const Services = () => {
                   </select>
                 </div>
 
+                {/* Pricing */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pricing Type *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Pricing Type (INR) *</label>
                   <select
                     name="pricing_type"
                     value={formData.pricing_type}
@@ -283,10 +288,11 @@ const Services = () => {
                   </select>
                 </div>
 
+                {/* Rate */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {formData.pricing_type === 'HOURLY' ? 'Hourly Rate' : 
-                     formData.pricing_type === 'DAILY' ? 'Daily Rate' : 'Fixed Price'} *
+                    {formData.pricing_type === 'HOURLY' ? 'Hourly Rate (₹)' : 
+                     formData.pricing_type === 'DAILY' ? 'Daily Rate (₹)' : 'Fixed Price (₹)'} *
                   </label>
                   <input
                     type="number"
@@ -297,27 +303,71 @@ const Services = () => {
                     onChange={handleInputChange}
                     required
                     min="0"
-                    step="0.01"
+                    step="1"
                     className="input-field w-full"
-                    placeholder="0.00"
+                    placeholder="0"
                   />
                 </div>
               </div>
 
+              {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
                   rows={4}
                   className="input-field w-full"
-                  placeholder="Describe your service, experience, and what customers can expect..."
+                  placeholder="Describe your service..."
                 />
               </div>
 
+              {/* Images (Google Drive links) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Service Images (Google Drive Links)</label>
+                <div className="space-y-2">
+                  {formData.images.map((link, idx) => (
+                    <div key={idx} className="flex items-center space-x-2">
+                      <input
+                        type="url"
+                        value={link}
+                        onChange={(e) => {
+                          const updated = [...formData.images]
+                          updated[idx] = e.target.value
+                          setFormData(prev => ({ ...prev, images: updated }))
+                        }}
+                        className="input-field w-full"
+                        placeholder="Paste Google Drive link"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = formData.images.filter((_, i) => i !== idx)
+                          setFormData(prev => ({ ...prev, images: updated }))
+                        }}
+                        className="btn-outline text-red-500"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData(prev => ({ ...prev, images: [...prev.images, ''] }))
+                    }
+                    className="btn-outline text-primary-600"
+                  >
+                    + Add Image
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Please use public Google Drive links (anyone with link can view).
+                </p>
+              </div>
+
+              {/* Availability */}
               <div className="flex items-center space-x-3">
                 <input
                   type="checkbox"
@@ -331,19 +381,29 @@ const Services = () => {
                 </label>
               </div>
 
+              {/* Submit feedback */}
+              {submitState.error && (
+                <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm">{submitState.error}</div>
+              )}
+              {submitState.success && (
+                <div className="p-3 rounded-md bg-green-50 text-green-700 text-sm">{submitState.success}</div>
+              )}
+
+              {/* Buttons */}
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddForm(false)
                     setEditingService(null)
+                    setSubmitState({ loading: false, error: '', success: '' })
                   }}
                   className="btn-outline"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
-                  {editingService ? 'Update Service' : 'Create Service'}
+                <button type="submit" className="btn-primary" disabled={submitState.loading}>
+                  {submitState.loading ? 'Saving...' : (editingService ? 'Update Service' : 'Create Service')}
                 </button>
               </div>
             </form>
@@ -362,15 +422,73 @@ const Services = () => {
               transition={{ delay: index * 0.1 }}
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200"
             >
-              <div className="h-48 bg-gradient-to-br from-primary-50 to-purple-50 flex items-center justify-center">
-                <Package className="w-16 h-16 text-primary-400" />
+              {/* Image Carousel */}
+              <div className="relative h-48 bg-gray-100 overflow-hidden rounded-t-xl">
+                {service.images && service.images.length > 0 ? (
+                  <>
+                    <motion.img
+                      key={activeImage[service.id] || 0}
+                      src={service.images[activeImage[service.id] || 0]
+                        .replace("file/d/", "uc?export=view&id=")
+                        .replace("/view?usp=sharing", "")}
+                      alt={service.title}
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={() =>
+                        setLightbox({ open: true, images: service.images, index: activeImage[service.id] || 0 })
+                      }
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+
+                    {service.images.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setActiveImage(prev => ({
+                              ...prev,
+                              [service.id]: ((prev[service.id] || 0) - 1 + service.images.length) % service.images.length
+                            }))
+                          }}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1 rounded-full hover:bg-black/60"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveImage(prev => ({
+                              ...prev,
+                              [service.id]: ((prev[service.id] || 0) + 1) % service.images.length
+                            }))
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1 rounded-full hover:bg-black/60"
+                        >
+                          ›
+                        </button>
+                      </>
+                    )}
+
+                    {service.images.length > 1 && (
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-1">
+                        {service.images.map((_, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveImage(prev => ({ ...prev, [service.id]: idx }))}
+                            className={`w-2 h-2 rounded-full ${idx === (activeImage[service.id] || 0) ? "bg-white" : "bg-gray-400"}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Package className="w-16 h-16 text-primary-400 absolute inset-0 m-auto" />
+                )}
               </div>
-              
+
+              {/* Card Body */}
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
-                    {service.title}
-                  </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{service.title}</h3>
                   <button
                     onClick={() => handleEdit(service)}
                     className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
@@ -409,19 +527,15 @@ const Services = () => {
 
                 <div className="flex items-center justify-between">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    service.is_available 
-                      ? 'text-green-600 bg-green-100' 
-                      : 'text-red-600 bg-red-100'
+                    service.is_available ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
                   }`}>
                     {service.is_available ? (
                       <>
-                        <Eye className="w-3 h-3 mr-1" />
-                        Available
+                        <Eye className="w-3 h-3 mr-1" /> Available
                       </>
                     ) : (
                       <>
-                        <EyeOff className="w-3 h-3 mr-1" />
-                        Unavailable
+                        <EyeOff className="w-3 h-3 mr-1" /> Unavailable
                       </>
                     )}
                   </span>
@@ -441,9 +555,7 @@ const Services = () => {
           >
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No services yet</h3>
-            <p className="text-gray-500 mb-6">
-              Create your first service listing to start attracting customers.
-            </p>
+            <p className="text-gray-500 mb-6">Create your first service listing to start attracting customers.</p>
             <button
               onClick={() => setShowAddForm(true)}
               className="btn-primary"
@@ -454,9 +566,62 @@ const Services = () => {
           </motion.div>
         )}
       </div>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightbox.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
+          >
+            <button
+              onClick={() => setLightbox({ open: false, images: [], index: 0 })}
+              className="absolute top-4 right-4 text-white text-2xl"
+            >
+              ✕
+            </button>
+
+            <img
+              src={lightbox.images[lightbox.index]
+                .replace("file/d/", "uc?export=view&id=")
+                .replace("/view?usp=sharing", "")}
+              alt="Preview"
+              className="max-h-[90vh] max-w-[90vw] object-contain"
+            />
+
+            {lightbox.images.length > 1 && (
+              <>
+                <button
+                  onClick={() =>
+                    setLightbox(prev => ({
+                      ...prev,
+                      index: (prev.index - 1 + prev.images.length) % prev.images.length
+                    }))
+                  }
+                  className="absolute left-6 top-1/2 -translate-y-1/2 text-white text-3xl"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() =>
+                    setLightbox(prev => ({
+                      ...prev,
+                      index: (prev.index + 1) % prev.images.length
+                    }))
+                  }
+                  className="absolute right-6 top-1/2 -translate-y-1/2 text-white text-3xl"
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
 export default Services
-

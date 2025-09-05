@@ -72,6 +72,8 @@ const Earnings = () => {
     }
   }
 
+  const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
+
   const earningsCards = [
     {
       title: 'This Week',
@@ -139,7 +141,7 @@ const Earnings = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600">{card.title}</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ${card.amount.toLocaleString()}
+                  {inr.format(card.amount)}
                 </p>
               </div>
               <div className={`w-12 h-12 ${card.color} rounded-lg flex items-center justify-center`}>
@@ -238,7 +240,7 @@ const Earnings = () => {
                     {payout.reference}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    ${payout.amount.toLocaleString()}
+                    {inr.format(payout.amount)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(payout.status)}`}>
