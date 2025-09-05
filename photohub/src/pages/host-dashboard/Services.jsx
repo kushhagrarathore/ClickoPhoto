@@ -49,13 +49,10 @@ const Services = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitState({ loading: true, error: '', success: '' })
-    
-    const location = [formData.city, formData.state].filter(Boolean).join(', ')
 
     const serviceData = {
       ...formData,
       host_id: profile?.id,
-      location,
       hourly_rate: formData.pricing_type === 'HOURLY' ? parseFloat(formData.hourly_rate) : null,
       daily_rate: formData.pricing_type === 'DAILY' ? parseFloat(formData.daily_rate) : null,
       fixed_rate: formData.pricing_type === 'FIXED' ? parseFloat(formData.fixed_rate) : null,
@@ -95,17 +92,6 @@ const Services = () => {
 
   const handleEdit = (service) => {
     setEditingService(service)
-    let city = ''
-    let state = ''
-    if (service.location) {
-      const parts = service.location.split(',').map(p => p.trim())
-      if (parts.length >= 2) {
-        city = parts[0]
-        state = parts.slice(1).join(', ')
-      } else {
-        city = service.location
-      }
-    }
 
     setFormData({
       title: service.title || '',
@@ -116,8 +102,8 @@ const Services = () => {
       hourly_rate: service.hourly_rate || '',
       daily_rate: service.daily_rate || '',
       fixed_rate: service.fixed_rate || '',
-      city,
-      state,
+      city: service.city || '',
+      state: service.state || '',
       is_available: service.is_available !== false,
       images: service.images || []
     })
@@ -507,10 +493,10 @@ const Services = () => {
                     <span className="font-medium">{getPricingDisplay(service)}</span>
                   </div>
                   
-                  {service.location && (
+                  {(service.city || service.state) && (
                     <div className="flex items-center space-x-2 text-sm text-gray-600">
                       <MapPin className="w-4 h-4" />
-                      <span>{service.location}</span>
+                      <span>{[service.city, service.state].filter(Boolean).join(', ')}</span>
                     </div>
                   )}
 
@@ -600,7 +586,7 @@ const Services = () => {
                       index: (prev.index - 1 + prev.images.length) % prev.images.length
                     }))
                   }
-                  className="absolute left-6 top-1/2 -translate-y-1/2 text-white text-3xl"
+                  className="absolute left-6 top-1/2 -translate-y-1/2 text-white text-4xl px-3 py-1 rounded-full hover:bg-white/20"
                 >
                   ‹
                 </button>
@@ -611,7 +597,7 @@ const Services = () => {
                       index: (prev.index + 1) % prev.images.length
                     }))
                   }
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-white text-3xl"
+                  className="absolute right-6 top-1/2 -translate-y-1/2 text-white text-4xl px-3 py-1 rounded-full hover:bg-white/20"
                 >
                   ›
                 </button>
