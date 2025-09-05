@@ -13,12 +13,11 @@ const INDIA_STATES = [
 ]
 
 const Services = () => {
-  const { services, createService, updateService, deleteService } = useStore()
+  const { services, createService, updateService, deleteService, isDummyMode } = useStore()
   const { user, profile } = useAuth()
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingService, setEditingService] = useState(null)
-  const [activeImage, setActiveImage] = useState({})
-  const [lightbox, setLightbox] = useState({ open: false, images: [], index: 0 })
+  
   const [submitState, setSubmitState] = useState({ loading: false, error: '', success: '' })
 
   // Filter services for current host (use host profile id)
@@ -35,8 +34,7 @@ const Services = () => {
     fixed_rate: '',
     city: '',
     state: '',
-    is_available: true,
-    images: []
+    is_available: true
   })
 
   const handleInputChange = (e) => {
@@ -47,17 +45,25 @@ const Services = () => {
     }))
   }
 
+  
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitState({ loading: true, error: '', success: '' })
 
+    if (!profile?.id) {
+      setSubmitState({ loading: false, error: 'Host profile not loaded. Please re-login.', success: '' })
+      toast.error('Host profile not loaded. Please re-login.')
+      return
+    }
+
+    // Prepare payload with normalized Drive links
     const serviceData = {
       ...formData,
       host_id: profile?.id,
       hourly_rate: formData.pricing_type === 'HOURLY' ? parseFloat(formData.hourly_rate) : null,
       daily_rate: formData.pricing_type === 'DAILY' ? parseFloat(formData.daily_rate) : null,
-      fixed_rate: formData.pricing_type === 'FIXED' ? parseFloat(formData.fixed_rate) : null,
-      images: formData.images.filter(link => link.trim() !== '')
+      fixed_rate: formData.pricing_type === 'FIXED' ? parseFloat(formData.fixed_rate) : null
     }
 
     try {
@@ -67,8 +73,9 @@ const Services = () => {
         toast.success('Service updated successfully ✅')
         setEditingService(null)
       } else {
-        const { error } = await createService(serviceData)
+        const { data, error } = await createService(serviceData)
         if (error) throw new Error(error)
+        console.log('Service successfully saved:', data)
         toast.success('Service created successfully 🎉')
       }
 
@@ -83,8 +90,7 @@ const Services = () => {
       fixed_rate: '',
       city: '',
       state: '',
-      is_available: true,
-      images: []
+      is_available: true
     })
       setShowAddForm(false)
       setSubmitState({ loading: false, error: '', success: '' })
@@ -177,8 +183,7 @@ const Services = () => {
                     fixed_rate: '',
                     city: '',
                     state: '',
-                    is_available: true,
-                    images: []
+                    is_available: true
                   })
                 }}
                 className="text-gray-400 hover:text-gray-600"
@@ -313,49 +318,7 @@ const Services = () => {
                 />
               </div>
 
-              {/* Images (Google Drive links) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Service Images (Google Drive Links)</label>
-                <div className="space-y-2">
-                  {formData.images.map((link, idx) => (
-                    <div key={idx} className="flex items-center space-x-2">
-                      <input
-                        type="url"
-                        value={link}
-                        onChange={(e) => {
-                          const updated = [...formData.images]
-                          updated[idx] = e.target.value
-                          setFormData(prev => ({ ...prev, images: updated }))
-                        }}
-                        className="input-field w-full"
-                        placeholder="Paste Google Drive link"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updated = formData.images.filter((_, i) => i !== idx)
-                          setFormData(prev => ({ ...prev, images: updated }))
-                        }}
-                        className="btn-outline text-red-500"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData(prev => ({ ...prev, images: [...prev.images, ''] }))
-                    }
-                    className="btn-outline text-primary-600"
-                  >
-                    + Add Image
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Please use public Google Drive links (anyone with link can view).
-                </p>
-              </div>
+              
 
               {/* Availability */}
               <div className="flex items-center space-x-3">
@@ -412,68 +375,8 @@ const Services = () => {
               transition={{ delay: index * 0.1 }}
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200"
             >
-              {/* Image Carousel */}
-              <div className="relative h-48 bg-gray-100 overflow-hidden rounded-t-xl">
-                {service.images && service.images.length > 0 ? (
-                  <>
-                    <motion.img
-                      key={activeImage[service.id] || 0}
-                      src={service.images[activeImage[service.id] || 0]
-                        .replace("file/d/", "uc?export=view&id=")
-                        .replace("/view?usp=sharing", "")}
-                      alt={service.title}
-                      className="w-full h-full object-cover cursor-pointer"
-                      onClick={() =>
-                        setLightbox({ open: true, images: service.images, index: activeImage[service.id] || 0 })
-                      }
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-
-                    {service.images.length > 1 && (
-                      <>
-                        <button
-                          onClick={() => {
-                            setActiveImage(prev => ({
-                              ...prev,
-                              [service.id]: ((prev[service.id] || 0) - 1 + service.images.length) % service.images.length
-                            }))
-                          }}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1 rounded-full hover:bg-black/60"
-                        >
-                          ‹
-                        </button>
-                        <button
-                          onClick={() => {
-                            setActiveImage(prev => ({
-                              ...prev,
-                              [service.id]: ((prev[service.id] || 0) + 1) % service.images.length
-                            }))
-                          }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-1 rounded-full hover:bg-black/60"
-                        >
-                          ›
-                        </button>
-                      </>
-                    )}
-
-                    {service.images.length > 1 && (
-                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex space-x-1">
-                        {service.images.map((_, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setActiveImage(prev => ({ ...prev, [service.id]: idx }))}
-                            className={`w-2 h-2 rounded-full ${idx === (activeImage[service.id] || 0) ? "bg-white" : "bg-gray-400"}`}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <Package className="w-16 h-16 text-primary-400 absolute inset-0 m-auto" />
-                )}
-              </div>
+              {/* Media removed */}
+              <div className="h-16 bg-gray-100" />
 
               {/* Card Body */}
               <div className="p-6">
@@ -574,59 +477,7 @@ const Services = () => {
         )}
       </div>
 
-      {/* Lightbox */}
-      <AnimatePresence>
-        {lightbox.open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
-          >
-            <button
-              onClick={() => setLightbox({ open: false, images: [], index: 0 })}
-              className="absolute top-4 right-4 text-white text-2xl"
-            >
-              ✕
-            </button>
-
-            <img
-              src={lightbox.images[lightbox.index]
-                .replace("file/d/", "uc?export=view&id=")
-                .replace("/view?usp=sharing", "")}
-              alt="Preview"
-              className="max-h-[90vh] max-w-[90vw] object-contain"
-            />
-
-            {lightbox.images.length > 1 && (
-              <>
-                <button
-                  onClick={() =>
-                    setLightbox(prev => ({
-                      ...prev,
-                      index: (prev.index - 1 + prev.images.length) % prev.images.length
-                    }))
-                  }
-                  className="absolute left-6 top-1/2 -translate-y-1/2 text-white text-4xl px-3 py-1 rounded-full hover:bg-white/20"
-                >
-                  ‹
-                </button>
-                <button
-                  onClick={() =>
-                    setLightbox(prev => ({
-                      ...prev,
-                      index: (prev.index + 1) % prev.images.length
-                    }))
-                  }
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-white text-4xl px-3 py-1 rounded-full hover:bg-white/20"
-                >
-                  ›
-                </button>
-              </>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      
     </div>
   )
 }

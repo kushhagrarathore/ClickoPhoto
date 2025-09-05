@@ -155,16 +155,24 @@ export const StoreProvider = ({ children }) => {
     }
 
     try {
-      const { data, error } = await supabase
+      console.log('📤 Creating service with data:', serviceData)
+      // Insert without selecting representation to avoid SELECT RLS requirements
+      const { error } = await supabase
         .from(TABLES.SERVICES)
         .insert([serviceData])
-        .select()
-        .single()
 
-      if (error) throw error
-      setServices(prev => [...prev, data])
-      return { data, error: null }
+      if (error) {
+        console.error('❌ Supabase insert error:', error.message)
+        return { data: null, error: error.message }
+      }
+
+      // Refresh services list to include the newly created row
+      const refreshed = await fetchServices()
+      setServices(refreshed)
+      console.log('✅ Service created and list refreshed')
+      return { data: null, error: null }
     } catch (error) {
+      console.error('🔥 Unexpected createService error:', error)
       return { data: null, error: error.message }
     }
   }
