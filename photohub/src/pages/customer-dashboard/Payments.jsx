@@ -22,3 +22,6 @@ const CustomerPayments = () => {
 export default CustomerPayments
 
 
+
+
+
