@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Plus, Edit, Trash2, Eye, EyeOff, Package, DollarSign, Calendar, Star, MapPin, X
 } from 'lucide-react'
+import { ImageUpload, ImageCarousel } from '@/components/ui/ImageComponents'
+import { parseServiceImages } from '@/utils/imageUtils'
 import { useStore } from '@/contexts/StoreContext'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -34,7 +36,8 @@ const Services = () => {
     fixed_rate: '',
     city: '',
     state: '',
-    is_available: true
+    is_available: true,
+    images: []
   })
 
   const handleInputChange = (e) => {
@@ -90,7 +93,8 @@ const Services = () => {
       fixed_rate: '',
       city: '',
       state: '',
-      is_available: true
+      is_available: true,
+      images: []
     })
       setShowAddForm(false)
       setSubmitState({ loading: false, error: '', success: '' })
@@ -183,7 +187,8 @@ const Services = () => {
                     fixed_rate: '',
                     city: '',
                     state: '',
-                    is_available: true
+                    is_available: true,
+                    images: []
                   })
                 }}
                 className="text-gray-400 hover:text-gray-600"
@@ -318,7 +323,23 @@ const Services = () => {
                 />
               </div>
 
-              
+              {/* Images Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Service Images
+                </label>
+                <ImageUpload
+                  images={formData.images}
+                  onImagesChange={(imgs) =>
+                    setFormData((prev) => ({ ...prev, images: imgs }))
+                  }
+                  hostId={profile?.id}   // 🔥 pass hostId here
+                  disabled={submitState.loading}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Upload up to 6 images. First image will be the primary display.
+                </p>
+              </div>
 
               {/* Availability */}
               <div className="flex items-center space-x-3">
@@ -375,8 +396,7 @@ const Services = () => {
               transition={{ delay: index * 0.1 }}
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200"
             >
-              {/* Media removed */}
-              <div className="h-16 bg-gray-100" />
+              <ImageCarousel images={service.images} className="h-48" />
 
               {/* Card Body */}
               <div className="p-6">

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, isSupabaseConfigured, TABLES } from '@/lib/supabaseClient'
 import { dummyServices, dummyBookings, dummyReviews, categories, subcategories } from '@/lib/dummyData'
+import { cleanupServiceImages, parseServiceImages } from '@/utils/imageUtils'
 
 const StoreContext = createContext()
 
@@ -212,6 +213,11 @@ export const StoreProvider = ({ children }) => {
     }
 
     try {
+      const serviceToDelete = services.find(s => s.id === serviceId)
+      if (serviceToDelete?.images) {
+        const imgs = parseServiceImages(serviceToDelete.images)
+        await cleanupServiceImages(imgs)
+      }
       const { error } = await supabase
         .from(TABLES.SERVICES)
         .delete()

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useStore } from '@/contexts/StoreContext'
 import BookingForm from '@/components/ui/BookingForm'
 import RatingStars from '@/components/ui/RatingStars'
+import { ImageCarousel } from '@/components/ui/ImageComponents'
 
 const BookingPage = () => {
   const { serviceId } = useParams()
@@ -16,6 +17,15 @@ const BookingPage = () => {
   const [success, setSuccess] = useState(false)
 
   const service = services.find(s => s.id === serviceId)
+
+  const formatINR = (value) => {
+    if (value === null || value === undefined) return ''
+    try {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
+    } catch {
+      return `₹${value}`
+    }
+  }
 
   useEffect(() => {
     if (!service) {
@@ -109,10 +119,9 @@ const BookingPage = () => {
               
               {/* Service Image */}
               <div className="aspect-video overflow-hidden rounded-lg mb-6">
-                <img
-                  src={service.images?.[0] || 'https://images.unsplash.com/photo-1519741497674-611481863552?w=400'}
-                  alt={service.title}
-                  className="w-full h-full object-cover"
+                <ImageCarousel 
+                  images={service.images} 
+                  className="w-full h-full" 
                 />
               </div>
 
@@ -126,7 +135,7 @@ const BookingPage = () => {
                     </span>
                   </div>
                   <div className="text-2xl font-bold text-primary-600">
-                    ${service.hourly_rate}/hr
+                    {formatINR(service.hourly_rate)}/hr
                   </div>
                 </div>
 
@@ -137,7 +146,7 @@ const BookingPage = () => {
                   </div>
                   <div className="flex items-center space-x-1">
                     <Clock className="w-4 h-4" />
-                    <span>${service.daily_rate}/day</span>
+                    <span>{formatINR(service.daily_rate)}/day</span>
                   </div>
                 </div>
 

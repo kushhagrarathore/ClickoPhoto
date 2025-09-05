@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Star, MapPin, Clock, DollarSign, Heart } from 'lucide-react'
 import RatingStars from './RatingStars'
+import { ImageCarousel } from './ImageComponents'
+import { parseServiceImages } from '@/utils/imageUtils'
 
 const ServiceCard = ({ service, onFavorite, isFavorited = false }) => {
   const {
@@ -20,6 +22,15 @@ const ServiceCard = ({ service, onFavorite, isFavorited = false }) => {
     is_available,
   } = service
 
+  const formatINR = (value) => {
+    if (value === null || value === undefined) return ''
+    try {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
+    } catch {
+      return `₹${value}`
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -29,16 +40,15 @@ const ServiceCard = ({ service, onFavorite, isFavorited = false }) => {
     >
       {/* Image Section */}
       <div className="relative aspect-video overflow-hidden">
-        <img
-          src={images?.[0] || 'https://images.unsplash.com/photo-1519741497674-611481863552?w=400'}
-          alt={title}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        <ImageCarousel 
+          images={images} 
+          className="w-full h-full transition-transform duration-300 group-hover:scale-105" 
         />
         
         {/* Favorite Button */}
         <button
           onClick={() => onFavorite?.(id)}
-          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors"
+          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors z-10"
         >
           <Heart 
             className={`w-4 h-4 ${
@@ -49,15 +59,15 @@ const ServiceCard = ({ service, onFavorite, isFavorited = false }) => {
 
         {/* Availability Badge */}
         {!is_available && (
-          <div className="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs rounded-full">
+          <div className="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs rounded-full z-10">
             Unavailable
           </div>
         )}
 
         {/* Price Badge */}
-        <div className="absolute bottom-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full shadow-sm">
+        <div className="absolute bottom-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full shadow-sm z-10">
           <span className="text-sm font-semibold text-gray-900">
-            ${hourly_rate}/hr
+            {formatINR(hourly_rate)}/hr
           </span>
         </div>
       </div>
@@ -94,11 +104,11 @@ const ServiceCard = ({ service, onFavorite, isFavorited = false }) => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-1">
                 <Clock className="w-4 h-4 text-gray-500" />
-                <span className="text-gray-600">${hourly_rate}/hr</span>
+                <span className="text-gray-600">{formatINR(hourly_rate)}/hr</span>
               </div>
               <div className="flex items-center space-x-1">
                 <DollarSign className="w-4 h-4 text-gray-500" />
-                <span className="text-gray-600">${daily_rate}/day</span>
+                <span className="text-gray-600">{formatINR(daily_rate)}/day</span>
               </div>
             </div>
           </div>

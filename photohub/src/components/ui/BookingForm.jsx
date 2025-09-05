@@ -13,6 +13,15 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
 
   const [errors, setErrors] = useState({})
 
+  const formatINR = (value) => {
+    if (value === null || value === undefined) return ''
+    try {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
+    } catch {
+      return `₹${value}`
+    }
+  }
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -200,7 +209,7 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
             <div className="flex justify-between text-sm">
               <span>Rate per {formData.durationType === 'hours' ? 'hour' : 'day'}:</span>
               <span className="font-medium">
-                ${formData.durationType === 'hours' ? service.hourly_rate : service.daily_rate}
+                {formatINR(formData.durationType === 'hours' ? service.hourly_rate : service.daily_rate)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
@@ -212,7 +221,7 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
             <hr className="my-2" />
             <div className="flex justify-between text-lg font-semibold">
               <span>Total:</span>
-              <span className="text-primary-600">${calculateTotal()}</span>
+              <span className="text-primary-600">{formatINR(calculateTotal())}</span>
             </div>
           </div>
         </div>
@@ -229,7 +238,7 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
               Processing...
             </div>
           ) : (
-            `Book for $${calculateTotal()}`
+            `Book for ${formatINR(calculateTotal())}`
           )}
         </button>
       </form>
