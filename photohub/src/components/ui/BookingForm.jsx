@@ -9,6 +9,7 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
     duration: 1,
     durationType: 'hours', // 'hours' or 'days'
     specialRequests: '',
+    serviceType: 'photography',
   })
 
   const [errors, setErrors] = useState({})
@@ -118,6 +119,7 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
         durationType: formData.durationType,
         totalAmount,
         specialRequests: formData.specialRequests,
+        service_type: formData.serviceType,
       })
     }
   }
@@ -140,6 +142,23 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
       <h3 className="text-xl font-semibold text-gray-900 mb-6">Book This Service</h3>
       
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Service Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Service Type
+          </label>
+          <select
+            name="serviceType"
+            value={formData.serviceType}
+            onChange={handleInputChange}
+            className="input-field"
+          >
+            <option value="photography">Photographer</option>
+            <option value="videography">Videographer</option>
+            <option value="drone">Drone</option>
+            <option value="studio">Studio</option>
+          </select>
+        </div>
         {/* Date and Time Selection */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

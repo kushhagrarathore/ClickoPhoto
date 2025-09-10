@@ -291,7 +291,7 @@ export const StoreProvider = ({ children }) => {
         end_time: bookingData.endTimeStr,     // 'HH:MM:SS'
         duration_hours: bookingData.durationType === 'hours' ? bookingData.duration : bookingData.duration * 24,
         total_amount: bookingData.totalAmount,
-        status: 'PENDING',
+        status: 'CONFIRMED',
         special_requirements: bookingData.specialRequests ?? null,
         service_type: bookingData.service_type || null,
         customer_name: bookingData.customer_name || null,
@@ -322,7 +322,7 @@ export const StoreProvider = ({ children }) => {
             endTime: bookingData.endTimeStr,
             durationHours: payload.duration_hours,
             totalAmount: bookingData.totalAmount,
-            status: 'PENDING',
+            status: 'CONFIRMED',
             specialRequirements: bookingData.specialRequests ?? null,
           }
           const { data, error } = await supabase
@@ -346,7 +346,7 @@ export const StoreProvider = ({ children }) => {
               end_time: bookingData.endTimeStr,
               duration_hours: payload.duration_hours,
               total_amount: bookingData.totalAmount,
-              status: 'PENDING',
+              status: 'CONFIRMED',
               payment_status: 'PENDING',
               special_requirements: bookingData.specialRequests ?? null,
             }
