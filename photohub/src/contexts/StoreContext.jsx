@@ -239,7 +239,7 @@ export const StoreProvider = ({ children }) => {
         id: Date.now().toString(),
         ...bookingData,
         created_at: new Date().toISOString(),
-        status: 'pending',
+        status: 'PENDING',
       }
       setBookings(prev => [...prev, newBooking])
       return { data: newBooking, error: null }
@@ -363,9 +363,10 @@ export const StoreProvider = ({ children }) => {
           }
         }
       }
-      if (insertError) throw insertError
-
-      if (error) throw error
+      if (insertError) {
+        console.error('Supabase insert error:', insertError)
+        return { data: null, error: insertError }
+      }
       // Optimistically add a local representation for immediate UX feedback
       setBookings(prev => [
         ...prev,
@@ -398,9 +399,10 @@ export const StoreProvider = ({ children }) => {
         // Optional: unsubscribe after sending to avoid leaked channels
         setTimeout(() => channel.unsubscribe(), 500)
       } catch {}
-      return { data: null, error: null }
+      return { data: { id: insertedId, ...payload }, error: null }
     } catch (error) {
-      return { data: null, error: error.message }
+      console.error('Unexpected booking error:', error)
+      return { data: null, error }
     }
   }
 
