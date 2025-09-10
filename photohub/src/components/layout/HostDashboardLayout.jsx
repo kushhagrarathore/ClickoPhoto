@@ -19,6 +19,7 @@ import {
   Camera
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabaseClient'
 
 const HostDashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -58,6 +59,28 @@ const HostDashboardLayout = () => {
   useEffect(() => {
     setSidebarOpen(false)
   }, [location.pathname])
+
+  // Realtime booking notifications for hosts
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase.channel(`host:${user.id}`)
+    channel.on('broadcast', { event: 'booking_created' }, (payload) => {
+      setNotificationCount((c) => c + 1)
+      // Optionally, show a simple toast using alert or a nicer toast system if available
+      try {
+        const details = payload?.payload
+        if (details?.start_date) {
+          const when = new Date(details.start_date).toLocaleString()
+          // eslint-disable-next-line no-alert
+          alert(`New booking received for ${when}`)
+        }
+      } catch {}
+    })
+    channel.subscribe()
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [user?.id])
 
   const handleSignOut = async () => {
     try {

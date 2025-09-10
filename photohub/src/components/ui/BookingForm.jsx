@@ -69,8 +69,27 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
     e.preventDefault()
     
     if (validateForm()) {
-      const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`)
+      const buildDateTime = (dateStr, timeStr) => {
+        try {
+          const [year, month, day] = String(dateStr).split('-').map(Number)
+          const [hour, minute] = String(timeStr).split(':').map(Number)
+          const dt = new Date()
+          dt.setSeconds(0, 0)
+          dt.setFullYear(year, (month || 1) - 1, day || 1)
+          dt.setHours(hour || 0, minute || 0, 0, 0)
+          return dt
+        } catch {
+          return new Date('invalid')
+        }
+      }
+
+      const startDateTime = buildDateTime(formData.startDate, formData.startTime)
       const endDateTime = new Date(startDateTime)
+
+      if (isNaN(startDateTime.getTime())) {
+        setErrors(prev => ({ ...prev, startTime: 'Please select a valid date and time' }))
+        return
+      }
       
       if (formData.durationType === 'hours') {
         endDateTime.setHours(endDateTime.getHours() + formData.duration)
@@ -82,11 +101,19 @@ const BookingForm = ({ service, onSubmit, loading = false }) => {
         ? service.hourly_rate * formData.duration
         : service.daily_rate * formData.duration
 
+      const pad = (n) => String(n).padStart(2, '0')
+      const startDateStr = `${startDateTime.getFullYear()}-${pad(startDateTime.getMonth() + 1)}-${pad(startDateTime.getDate())}`
+      const startTimeStr = `${pad(startDateTime.getHours())}:${pad(startDateTime.getMinutes())}:00`
+      const endTimeStr = `${pad(endDateTime.getHours())}:${pad(endDateTime.getMinutes())}:00`
+
       onSubmit({
         serviceId: service.id,
         hostId: service.host_id,
         startDate: startDateTime.toISOString(),
         endDate: endDateTime.toISOString(),
+        startDateStr,
+        startTimeStr,
+        endTimeStr,
         duration: formData.duration,
         durationType: formData.durationType,
         totalAmount,

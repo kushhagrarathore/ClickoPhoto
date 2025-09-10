@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Star, MapPin, Clock, DollarSign } from 'lucide-react'
+import { ArrowLeft, MapPin, Clock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useStore } from '@/contexts/StoreContext'
 import BookingForm from '@/components/ui/BookingForm'
@@ -11,7 +11,7 @@ import { ImageCarousel } from '@/components/ui/ImageComponents'
 const BookingPage = () => {
   const { serviceId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { services, createBooking } = useStore()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -34,25 +34,39 @@ const BookingPage = () => {
   }, [service, navigate])
 
   const handleBookingSubmit = async (bookingData) => {
+    if (!user) {
+      alert('You must be logged in to book a service.')
+      return
+    }
+
     setLoading(true)
+    console.log('Booking data:', bookingData)
+
     try {
-      const { data, error } = await createBooking({
+      const result = await createBooking({
         ...bookingData,
-        customer_id: user.id,
+        customer_name: profile?.full_name || user.email,
+        customer_location: profile?.location || '',
+        service_type: service?.category || service?.subcategory || 'Service',
       })
-      
-      if (error) {
-        console.error('Booking error:', error)
-        alert('Failed to create booking. Please try again.')
-      } else {
-        setSuccess(true)
-        setTimeout(() => {
-          navigate('/customer/dashboard')
-        }, 3000)
+
+      console.log('createBooking result:', result)
+
+      // ✅ Safe error handling
+      if (result && result.error) {
+        console.error('Booking error:', result.error)
+        alert(`Failed to create booking: ${result.error.message || JSON.stringify(result.error)}`)
+        return
       }
+
+      // Success
+      setSuccess(true)
+      setTimeout(() => {
+        navigate('/customer/dashboard')
+      }, 3000)
     } catch (err) {
-      console.error('Booking error:', err)
-      alert('An unexpected error occurred. Please try again.')
+      console.error('Booking error (exception):', err)
+      alert(`An unexpected error occurred: ${err.message || JSON.stringify(err)}`)
     } finally {
       setLoading(false)
     }
@@ -78,7 +92,15 @@ const BookingPage = () => {
           className="card p-8 text-center max-w-md"
         >
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="w-8 h-8 bg-green-500 rounded-full"></div>
+            <svg
+              className="w-8 h-8 text-green-500"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Booking Confirmed!</h2>
           <p className="text-gray-600 mb-6">
@@ -98,7 +120,6 @@ const BookingPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
@@ -116,8 +137,6 @@ const BookingPage = () => {
           >
             <div className="card p-6">
               <h1 className="text-2xl font-bold text-gray-900 mb-4">{service.title}</h1>
-              
-              {/* Service Image */}
               <div className="aspect-video overflow-hidden rounded-lg mb-6">
                 <ImageCarousel 
                   images={service.images} 
@@ -125,7 +144,6 @@ const BookingPage = () => {
                 />
               </div>
 
-              {/* Service Info */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -152,7 +170,6 @@ const BookingPage = () => {
 
                 <p className="text-gray-700 leading-relaxed">{service.description}</p>
 
-                {/* Tags */}
                 {service.tags && service.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {service.tags.map((tag) => (
@@ -188,5 +205,3 @@ const BookingPage = () => {
 }
 
 export default BookingPage
-
-

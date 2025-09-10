@@ -2,45 +2,38 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Calendar, 
-  Clock, 
-  DollarSign, 
-  User, 
   CheckCircle, 
   XCircle, 
   AlertCircle,
   Eye,
-  MessageSquare
 } from 'lucide-react'
 import { useStore } from '@/contexts/StoreContext'
 import { useAuth } from '@/contexts/AuthContext'
 
 const Bookings = () => {
-  const { bookings, updateBookingStatus } = useStore()
+  const { bookings, issueBookingOtp } = useStore()
   const { profile } = useAuth()
-  const [activeTab, setActiveTab] = useState('upcoming')
+  const [activeTab, setActiveTab] = useState('pending')
 
-  // Filter bookings for current host (use host profile id)
   const hostBookings = bookings.filter(b => b.host_id === profile?.id)
 
   const tabs = [
-    { id: 'upcoming', name: 'Upcoming', count: 0 },
     { id: 'pending', name: 'Pending', count: 0 },
+    { id: 'upcoming', name: 'Upcoming', count: 0 },
     { id: 'past', name: 'Past', count: 0 }
   ]
 
-  // Categorize bookings
   const upcomingBookings = hostBookings.filter(b => 
-    b.status === 'CONFIRMED' && new Date(b.start_date) > new Date()
+    (String(b.status).toUpperCase() === 'CONFIRMED') && new Date(b.start_date) > new Date()
   )
-  const pendingBookings = hostBookings.filter(b => b.status === 'PENDING')
+  const pendingBookings = hostBookings.filter(b => String(b.status).toUpperCase() === 'PENDING')
   const pastBookings = hostBookings.filter(b => 
-    b.status === 'COMPLETED' || b.status === 'CANCELLED' || 
-    (b.status === 'CONFIRMED' && new Date(b.start_date) < new Date())
+    ['COMPLETED', 'CANCELLED'].includes(String(b.status).toUpperCase()) ||
+    (String(b.status).toUpperCase() === 'CONFIRMED' && new Date(b.start_date) < new Date())
   )
 
-  // Update tab counts
-  tabs[0].count = upcomingBookings.length
-  tabs[1].count = pendingBookings.length
+  tabs[0].count = pendingBookings.length
+  tabs[1].count = upcomingBookings.length
   tabs[2].count = pastBookings.length
 
   const getCurrentBookings = () => {
@@ -53,7 +46,8 @@ const Bookings = () => {
   }
 
   const getStatusColor = (status) => {
-    switch (status) {
+    const s = String(status).toUpperCase()
+    switch (s) {
       case 'CONFIRMED': return 'text-green-600 bg-green-100'
       case 'PENDING': return 'text-yellow-600 bg-yellow-100'
       case 'COMPLETED': return 'text-blue-600 bg-blue-100'
@@ -63,7 +57,8 @@ const Bookings = () => {
   }
 
   const getStatusIcon = (status) => {
-    switch (status) {
+    const s = String(status).toUpperCase()
+    switch (s) {
       case 'CONFIRMED': return <CheckCircle className="w-4 h-4" />
       case 'PENDING': return <AlertCircle className="w-4 h-4" />
       case 'COMPLETED': return <CheckCircle className="w-4 h-4" />
@@ -72,29 +67,18 @@ const Bookings = () => {
     }
   }
 
-  const handleStatusUpdate = async (bookingId, newStatus) => {
-    await updateBookingStatus(bookingId, newStatus)
-  }
-
   const currentBookings = getCurrentBookings()
-
   const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-          <p className="text-gray-600">Manage your customer bookings and appointments.</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button className="btn-outline">Export</button>
-          <button className="btn-primary">Calendar View</button>
+          <p className="text-gray-600">New booking notifications will appear here.</p>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6" aria-label="Tabs">
@@ -121,124 +105,58 @@ const Bookings = () => {
           </nav>
         </div>
 
-        {/* Tab Content */}
         <div className="p-6">
           {currentBookings.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Service
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date & Time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booking ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-3" />
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {currentBookings.map((booking, index) => (
+                  {currentBookings.map((b, index) => (
                     <motion.tr
-                      key={booking.id}
+                      key={b.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                      transition={{ delay: index * 0.04 }}
                       className="hover:bg-gray-50"
                     >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{b.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{b.service_type || 'Service'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{b.customer_name || 'Customer'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{b.customer_location || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(b.start_date).toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{b.end_time ? `${b.start_date} ${b.end_time}` : '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">
-                              {booking.customer_name?.charAt(0) || 'C'}
-                            </span>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {booking.customer_name || 'Customer'}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {booking.customer_email || 'customer@example.com'}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {booking.service_title || 'Service'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {booking.duration_hours ? `${booking.duration_hours} hours` : 'Duration not set'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {new Date(booking.start_date).toLocaleDateString()}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {booking.start_time} - {booking.end_time}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                          {getStatusIcon(booking.status)}
-                          <span className="ml-1">{booking.status}</span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(b.status)}`}>
+                          {getStatusIcon(b.status)}
+                          <span className="ml-1">{String(b.status).toUpperCase()}</span>
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {booking.total_amount != null ? inr.format(booking.total_amount) : inr.format(0)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
-                          <button className="text-primary-600 hover:text-primary-900">
-                            <Eye className="w-4 h-4" />
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{inr.format(b.total_amount || 0)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
+                        <button className="text-primary-600 hover:text-primary-900"><Eye className="w-4 h-4" /></button>
+                        {String(b.status).toUpperCase() === 'CONFIRMED' && (
+                          <button
+                            onClick={async () => {
+                              const code = await issueBookingOtp(b.id)
+                              alert(`OTP sent to customer: ${code}`)
+                            }}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            Share OTP
                           </button>
-                          <button className="text-blue-600 hover:text-blue-900">
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-                          
-                          {/* Status update buttons for pending bookings */}
-                          {booking.status === 'PENDING' && (
-                            <>
-                              <button
-                                onClick={() => handleStatusUpdate(booking.id, 'CONFIRMED')}
-                                className="text-green-600 hover:text-green-900"
-                                title="Confirm"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleStatusUpdate(booking.id, 'CANCELLED')}
-                                className="text-red-600 hover:text-red-900"
-                                title="Cancel"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                          
-                          {/* Mark as completed for confirmed bookings */}
-                          {booking.status === 'CONFIRMED' && new Date(booking.start_date) < new Date() && (
-                            <button
-                              onClick={() => handleStatusUpdate(booking.id, 'COMPLETED')}
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Mark as Completed"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </td>
                     </motion.tr>
                   ))}
@@ -248,73 +166,10 @@ const Bookings = () => {
           ) : (
             <div className="text-center py-12">
               <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No {activeTab} bookings
-              </h3>
-              <p className="text-gray-500">
-                {activeTab === 'upcoming' && "You don't have any upcoming confirmed bookings."}
-                {activeTab === 'pending' && "You don't have any pending booking requests."}
-                {activeTab === 'past' && "You don't have any completed or cancelled bookings."}
-              </p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No {activeTab} bookings</h3>
+              <p className="text-gray-500">Nothing to show yet.</p>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-              <p className="text-2xl font-bold text-gray-900">{hostBookings.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Confirmed</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {hostBookings.filter(b => b.status === 'CONFIRMED').length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {hostBookings.filter(b => b.status === 'PENDING').length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {inr.format(hostBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0))}
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
