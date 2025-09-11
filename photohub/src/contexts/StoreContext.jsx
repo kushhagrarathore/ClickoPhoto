@@ -84,7 +84,7 @@ export const StoreProvider = ({ children }) => {
     }
   
     try {
-      let query = supabase.from(TABLES.SERVICES).select('*')
+      let query = supabase.from(TABLES.SERVICES).select('*').eq('is_available', true)
       if (filters.category) query = query.eq('category', filters.category)
       if (filters.subcategory) query = query.eq('subcategory', filters.subcategory)
       if (filters.city) query = query.ilike('city', `%${filters.city}%`)
@@ -376,6 +376,17 @@ export const StoreProvider = ({ children }) => {
           created_at: new Date().toISOString(),
         },
       ])
+      // Mark service as unavailable while booking is in progress (exclusive)
+      try {
+        // update local cache first
+        setServices(prev => prev.map(s => s.id === payload.service_id ? { ...s, is_available: false } : s))
+        // persist to DB
+        await supabase
+          .from(TABLES.SERVICES)
+          .update({ is_available: false })
+          .eq('id', payload.service_id)
+      } catch {}
+
       // Notify host via realtime broadcast (non-persistent)
       try {
         const channel = supabase.channel(`host:${payload.host_id}`)
@@ -412,6 +423,13 @@ export const StoreProvider = ({ children }) => {
       setBookings(prev => 
         prev.map(b => b.id === bookingId ? { ...b, status } : b)
       )
+      // Toggle service availability if completed
+      if (status === 'COMPLETED') {
+        const booking = bookings.find(b => b.id === bookingId)
+        if (booking?.service_id) {
+          setServices(prev => prev.map(s => s.id === booking.service_id ? { ...s, is_available: true } : s))
+        }
+      }
       return { data: { id: bookingId, status }, error: null }
     }
 
@@ -427,6 +445,22 @@ export const StoreProvider = ({ children }) => {
       setBookings(prev => 
         prev.map(b => b.id === bookingId ? data : b)
       )
+      // If status change affects availability, persist
+      try {
+        if (status === 'COMPLETED') {
+          await supabase
+            .from(TABLES.SERVICES)
+            .update({ is_available: true })
+            .eq('id', data.service_id)
+          setServices(prev => prev.map(s => s.id === data.service_id ? { ...s, is_available: true } : s))
+        } else if (status === 'CONFIRMED' || status === 'ACTIVE') {
+          await supabase
+            .from(TABLES.SERVICES)
+            .update({ is_available: false })
+            .eq('id', data.service_id)
+          setServices(prev => prev.map(s => s.id === data.service_id ? { ...s, is_available: false } : s))
+        }
+      } catch {}
       return { data, error: null }
     } catch (error) {
       return { data: null, error: error.message }
@@ -595,6 +629,7 @@ export const StoreProvider = ({ children }) => {
     getBookingOtp: (bookingId, phase = 'start') => bookingOtps[bookingId]?.[phase],
     endServiceNow,
     extendService,
+    setBookingOtp: (bookingId, phase, code) => setBookingOtps(prev => ({ ...prev, [bookingId]: { ...(prev[bookingId] || {}), [phase]: String(code) } })),
     createReview,
   }
 
