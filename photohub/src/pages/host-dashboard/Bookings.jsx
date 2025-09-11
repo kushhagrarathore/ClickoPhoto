@@ -11,7 +11,8 @@ import { useStore } from '@/contexts/StoreContext'
 import { useAuth } from '@/contexts/AuthContext'
 
 const Bookings = () => {
-  const { bookings, issueBookingOtp } = useStore()
+  const { bookings, verifyBookingOtp } = useStore()
+  const [otpInputs, setOtpInputs] = useState({}) // bookingId -> code
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState('pending')
 
@@ -118,6 +119,7 @@ const Bookings = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start OTP</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                     <th className="px-6 py-3" />
                   </tr>
@@ -143,20 +145,35 @@ const Bookings = () => {
                           <span className="ml-1">{String(b.status).toUpperCase()}</span>
                         </span>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {String(b.status).toUpperCase() === 'CONFIRMED' ? (
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="text"
+                              placeholder="Enter start OTP"
+                              value={otpInputs[b.id] || ''}
+                              onChange={(e) => setOtpInputs(prev => ({ ...prev, [b.id]: e.target.value }))}
+                              className="input-field w-36"
+                            />
+                            <button
+                              onClick={async () => {
+                                const code = otpInputs[b.id]
+                                const res = await verifyBookingOtp(b.id, code, 'start')
+                                if (res?.error || res?.ok === false) alert(res.error || 'Invalid OTP')
+                                else alert('Service activated')
+                              }}
+                              className="btn-primary py-1 px-3 text-xs"
+                            >
+                              Start
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">—</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{inr.format(b.total_amount || 0)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
                         <button className="text-primary-600 hover:text-primary-900"><Eye className="w-4 h-4" /></button>
-                        {String(b.status).toUpperCase() === 'CONFIRMED' && (
-                          <button
-                            onClick={async () => {
-                              const code = await issueBookingOtp(b.id)
-                              alert(`OTP sent to customer: ${code}`)
-                            }}
-                            className="text-green-600 hover:text-green-900"
-                          >
-                            Share OTP
-                          </button>
-                        )}
                       </td>
                     </motion.tr>
                   ))}

@@ -17,7 +17,7 @@ export const StoreProvider = ({ children }) => {
   const [services, setServices] = useState([])
   const [bookings, setBookings] = useState([])
   const [reviews, setReviews] = useState([])
-  const [bookingOtps, setBookingOtps] = useState({}) // ephemeral OTP store: { [bookingId]: code }
+  const [bookingOtps, setBookingOtps] = useState({}) // { [bookingId]: { start?: code, end?: code } }
   const [loading, setLoading] = useState(true)
   const [isDummyMode, setIsDummyMode] = useState(!isSupabaseConfigured())
 
@@ -434,36 +434,104 @@ export const StoreProvider = ({ children }) => {
   }
 
   // Issue OTP for a booking (host action)
-  const issueBookingOtp = async (bookingId) => {
+  const issueBookingOtp = async (bookingId, phase = 'start') => {
+    const existing = bookingOtps[bookingId]?.[phase]
+    if (existing) return existing
     const code = String(Math.floor(100000 + Math.random() * 900000))
-    setBookingOtps(prev => ({ ...prev, [bookingId]: code }))
+    setBookingOtps(prev => ({ ...prev, [bookingId]: { ...(prev[bookingId] || {}), [phase]: code } }))
     try {
       const channel = supabase.channel(`booking:${bookingId}`)
       await channel.subscribe()
-      channel.send({ type: 'broadcast', event: 'otp_issued', payload: { booking_id: bookingId, code } })
+      channel.send({ type: 'broadcast', event: `otp_${phase}_issued`, payload: { booking_id: bookingId, code } })
       setTimeout(() => channel.unsubscribe(), 500)
     } catch {}
     return code
   }
 
   // Verify OTP (customer action) and complete booking
-  const verifyBookingOtp = async (bookingId, code) => {
-    const expected = bookingOtps[bookingId]
+  const verifyBookingOtp = async (bookingId, code, phase = 'start') => {
+    const expected = bookingOtps[bookingId]?.[phase]
     if (!expected || expected !== String(code)) {
       return { ok: false, error: 'Invalid or expired OTP' }
     }
-    const res = await updateBookingStatus(bookingId, 'COMPLETED')
+    // start -> ACTIVE, end -> COMPLETED
+    const newStatus = phase === 'start' ? 'ACTIVE' : 'COMPLETED'
+    const res = await updateBookingStatus(bookingId, newStatus)
     if (!res.error) {
-      setBookingOtps(prev => { const { [bookingId]: _, ...rest } = prev; return rest })
+      setBookingOtps(prev => {
+        const current = { ...(prev[bookingId] || {}) }
+        delete current[phase]
+        // clear all OTPs when completed
+        const next = newStatus === 'COMPLETED' ? undefined : current
+        if (!next) {
+          const { [bookingId]: _, ...rest } = prev
+          return rest
+        }
+        return { ...prev, [bookingId]: next }
+      })
       try {
         const channel = supabase.channel(`booking:${bookingId}`)
         await channel.subscribe()
-        channel.send({ type: 'broadcast', event: 'otp_verified', payload: { booking_id: bookingId } })
+        channel.send({ type: 'broadcast', event: `otp_${phase}_verified`, payload: { booking_id: bookingId } })
         setTimeout(() => channel.unsubscribe(), 500)
       } catch {}
       return { ok: true }
     }
     return { ok: false, error: res.error }
+  }
+
+  // Early end by customer, with warning handled in UI; completes immediately
+  const endServiceNow = async (bookingId) => {
+    return await updateBookingStatus(bookingId, 'COMPLETED')
+  }
+
+  // Auto-end scheduler (client-side best-effort; backend cron recommended for production)
+  useEffect(() => {
+    if (isDummyMode) return
+    const timers = []
+    bookings.forEach((b) => {
+      if (String(b.status).toUpperCase() === 'ACTIVE' && b.end_time) {
+        const endAt = new Date(`${b.start_date}T${b.end_time}`)
+        const delay = endAt.getTime() - Date.now()
+        if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
+          const t = setTimeout(() => {
+            updateBookingStatus(b.id, 'COMPLETED')
+          }, delay)
+          timers.push(t)
+        }
+      }
+    })
+    return () => timers.forEach(clearTimeout)
+  }, [bookings, isDummyMode])
+
+  // Extend service: add minutes to end_time and adjust total_amount
+  const extendService = async (bookingId, extraMinutes, extraCostPerMinute) => {
+    if (isDummyMode) {
+      setBookings(prev => prev.map(b => b.id === bookingId ? {
+        ...b,
+        end_time: new Date(new Date(`${b.start_date}T${b.end_time}`).getTime() + extraMinutes * 60000).toTimeString().slice(0,8),
+        total_amount: (b.total_amount || 0) + extraMinutes * extraCostPerMinute,
+      } : b))
+      return { data: { id: bookingId }, error: null }
+    }
+    try {
+      const target = bookings.find(b => b.id === bookingId)
+      if (!target) return { data: null, error: 'Booking not found' }
+      const newEnd = new Date(new Date(`${target.start_date}T${target.end_time}`).getTime() + extraMinutes * 60000)
+      const newEndStr = newEnd.toTimeString().slice(0,8)
+      const newTotal = (target.total_amount || 0) + extraMinutes * extraCostPerMinute
+      const { data, error } = await supabase
+        .from(TABLES.BOOKINGS)
+        .update({ end_time: newEndStr, total_amount: newTotal })
+        .eq('id', bookingId)
+        .select()
+        .single()
+      if (error) return { data: null, error }
+      setBookings(prev => prev.map(b => b.id === bookingId ? data : b))
+      return { data, error: null }
+    } catch (error) {
+      return { data: null, error }
+    }
   }
 
   // Create review
@@ -524,6 +592,9 @@ export const StoreProvider = ({ children }) => {
     updateBookingStatus,
     issueBookingOtp,
     verifyBookingOtp,
+    getBookingOtp: (bookingId, phase = 'start') => bookingOtps[bookingId]?.[phase],
+    endServiceNow,
+    extendService,
     createReview,
   }
 

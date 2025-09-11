@@ -7,20 +7,21 @@ import { supabase } from '@/lib/supabaseClient'
 const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
 
 const CustomerBookings = () => {
-  const { bookings, verifyBookingOtp } = useStore()
+  const { bookings, verifyBookingOtp, issueBookingOtp, getBookingOtp, endServiceNow, extendService } = useStore()
   const { profile } = useAuth()
   const myBookings = useMemo(() => (bookings || []).filter(b => b.user_id === profile?.id), [bookings, profile?.id])
-  const [otpMap, setOtpMap] = useState({}) // bookingId -> received OTP
+  const [otpMap, setOtpMap] = useState({}) // bookingId -> code
+  const [extend, setExtend] = useState({}) // bookingId -> { minutes, rate }
 
   useEffect(() => {
     // subscribe to per-booking channel to receive OTP broadcasts
     const channels = myBookings.map((b) => {
       const ch = supabase.channel(`booking:${b.id}`)
-      ch.on('broadcast', { event: 'otp_issued' }, (payload) => {
+      ch.on('broadcast', { event: 'otp_start_issued' }, (payload) => {
         const code = payload?.payload?.code
         if (code) setOtpMap(prev => ({ ...prev, [b.id]: code }))
       })
-      ch.on('broadcast', { event: 'otp_verified' }, () => {
+      ch.on('broadcast', { event: 'otp_start_verified' }, () => {
         setOtpMap(prev => { const { [b.id]: _, ...rest } = prev; return rest })
       })
       ch.subscribe()
@@ -48,6 +49,7 @@ const CustomerBookings = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start OTP / Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -60,22 +62,61 @@ const CustomerBookings = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             {String(b.status).toUpperCase() === 'CONFIRMED' && (
                               <div className="flex items-center space-x-2">
+                                <span className="text-gray-900 font-mono">{getBookingOtp(b.id, 'start') || otpMap[b.id] || '—'}</span>
+                                {!getBookingOtp(b.id, 'start') && (
+                                  <button
+                                    onClick={async () => { const code = await issueBookingOtp(b.id, 'start'); setOtpMap(prev => ({ ...prev, [b.id]: code })) }}
+                                    className="btn-outline py-1 px-2 text-xs"
+                                  >
+                                    Generate Start OTP
+                                  </button>
+                                )}
+                                <span className="text-xs text-gray-500">Share this code with your host to begin</span>
+                              </div>
+                            )}
+                            {String(b.status).toUpperCase() === 'ACTIVE' && (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={async () => {
+                                    if (confirm('⚠️ You are ending early. Remaining time will be lost. Continue?')) {
+                                      const res = await endServiceNow(b.id)
+                                      if (res?.error) alert(res.error)
+                                      else alert('Service ended')
+                                    }
+                                  }}
+                                  className="btn-outline py-1 px-3 text-xs"
+                                >
+                                  End Now
+                                </button>
                                 <input
-                                  type="text"
-                                  placeholder="Enter OTP"
-                                  value={otpMap[b.id] || ''}
-                                  onChange={(e) => setOtpMap(prev => ({ ...prev, [b.id]: e.target.value }))}
-                                  className="input-field w-32"
+                                  type="number"
+                                  min="1"
+                                  placeholder="+Minutes"
+                                  value={extend[b.id]?.minutes || ''}
+                                  onChange={(e) => setExtend(prev => ({ ...prev, [b.id]: { ...(prev[b.id]||{}), minutes: Number(e.target.value)||0 } }))}
+                                  className="input-field w-24"
+                                />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="Rate/min"
+                                  value={extend[b.id]?.rate || ''}
+                                  onChange={(e) => setExtend(prev => ({ ...prev, [b.id]: { ...(prev[b.id]||{}), rate: Number(e.target.value)||0 } }))}
+                                  className="input-field w-24"
                                 />
                                 <button
                                   onClick={async () => {
-                                    const code = otpMap[b.id]
-                                    const res = await verifyBookingOtp(b.id, code)
-                                    if (!res.ok) alert(res.error)
+                                    const minutes = extend[b.id]?.minutes || 0
+                                    const rate = extend[b.id]?.rate || 0
+                                    if (minutes > 0) {
+                                      const res = await extendService(b.id, minutes, rate)
+                                      if (res?.error) alert(res.error)
+                                      else alert('Service extended')
+                                    }
                                   }}
-                                  className="btn-primary py-1 px-3"
+                                  className="btn-primary py-1 px-3 text-xs"
                                 >
-                                  Complete
+                                  Extend
                                 </button>
                               </div>
                             )}
