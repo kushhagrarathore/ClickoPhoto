@@ -13,8 +13,7 @@ import {
   List
 } from 'lucide-react'
 import { useStore } from '@/contexts/StoreContext'
-import EnhancedServiceCard from '@/components/ui/EnhancedServiceCard'
-import { ServiceCardSkeleton } from '@/components/ui/SkeletonLoader'
+import ServiceCard from '@/components/ui/ServiceCard'
 
 const ServiceListing = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -310,10 +309,8 @@ const ServiceListing = () => {
 
         {/* Services Grid/List */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, index) => (
-              <ServiceCardSkeleton key={index} />
-            ))}
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
           </div>
         ) : sortedServices.length === 0 ? (
           <div className="text-center py-12">
@@ -341,11 +338,10 @@ const ServiceListing = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
                 >
-                  <EnhancedServiceCard
+                  <ServiceCard
                     service={service}
                     onFavorite={handleFavorite}
                     isFavorited={favorites.includes(service.id)}
-                    onBookNow={(service) => console.log('Book now:', service)}
                   />
                 </motion.div>
               ))}
