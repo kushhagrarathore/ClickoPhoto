@@ -469,33 +469,34 @@ export const StoreProvider = ({ children }) => {
 
   // Issue OTP for a booking (host action)
   const issueBookingOtp = async (bookingId, phase = 'start') => {
-    const existing = bookingOtps[bookingId]?.[phase]
-    if (existing) return existing
-    const code = String(Math.floor(100000 + Math.random() * 900000))
-    setBookingOtps(prev => ({ ...prev, [bookingId]: { ...(prev[bookingId] || {}), [phase]: code } }))
+    // Use RPC for production-grade persistence
     try {
-      const channel = supabase.channel(`booking:${bookingId}`)
-      await channel.subscribe()
-      channel.send({ type: 'broadcast', event: `otp_${phase}_issued`, payload: { booking_id: bookingId, code } })
-      setTimeout(() => channel.unsubscribe(), 500)
+      const { data, error } = await supabase.rpc('generate_otp', { p_booking_id: bookingId, p_phase: phase })
+      if (error) return null
+      const code = Array.isArray(data) ? data[0]?.code : data?.code
+      if (code) {
+        setBookingOtps(prev => ({ ...prev, [bookingId]: { ...(prev[bookingId] || {}), [phase]: String(code) } }))
+        const channel = supabase.channel(`booking:${bookingId}`)
+        await channel.subscribe()
+        channel.send({ type: 'broadcast', event: `otp_${phase}_issued`, payload: { booking_id: bookingId, code } })
+        setTimeout(() => channel.unsubscribe(), 500)
+        return String(code)
+      }
     } catch {}
-    return code
+    return null
   }
 
   // Verify OTP (customer action) and complete booking
   const verifyBookingOtp = async (bookingId, code, phase = 'start') => {
-    const expected = bookingOtps[bookingId]?.[phase]
-    if (!expected || expected !== String(code)) {
-      return { ok: false, error: 'Invalid or expired OTP' }
-    }
-    // start -> ACTIVE, end -> COMPLETED
-    const newStatus = phase === 'start' ? 'ACTIVE' : 'COMPLETED'
-    const res = await updateBookingStatus(bookingId, newStatus)
-    if (!res.error) {
+    try {
+      const { data, error } = await supabase.rpc('verify_otp', { p_booking_id: bookingId, p_phase: phase, p_code: String(code) })
+      if (error || data !== true) return { ok: false, error: error?.message || 'Invalid or expired OTP' }
+      // reflect local changes
+      const newStatus = phase === 'start' ? 'ACTIVE' : 'COMPLETED'
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b))
       setBookingOtps(prev => {
         const current = { ...(prev[bookingId] || {}) }
         delete current[phase]
-        // clear all OTPs when completed
         const next = newStatus === 'COMPLETED' ? undefined : current
         if (!next) {
           const { [bookingId]: _, ...rest } = prev
@@ -510,8 +511,9 @@ export const StoreProvider = ({ children }) => {
         setTimeout(() => channel.unsubscribe(), 500)
       } catch {}
       return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e?.message || 'Verification failed' }
     }
-    return { ok: false, error: res.error }
   }
 
   // Early end by customer, with warning handled in UI; completes immediately
@@ -629,6 +631,7 @@ export const StoreProvider = ({ children }) => {
     getBookingOtp: (bookingId, phase = 'start') => bookingOtps[bookingId]?.[phase],
     endServiceNow,
     extendService,
+    setBookingOtp: (bookingId, phase, code) => setBookingOtps(prev => ({ ...prev, [bookingId]: { ...(prev[bookingId] || {}), [phase]: String(code) } })),
     createReview,
   }
 

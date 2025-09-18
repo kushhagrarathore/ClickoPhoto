@@ -65,8 +65,20 @@ const CustomerBookings = () => {
                                 <span className="text-gray-900 font-mono">{getBookingOtp(b.id, 'start') || otpMap[b.id] || '—'}</span>
                                 {!getBookingOtp(b.id, 'start') && (
                                   <button
-                                    onClick={async () => { const code = await issueBookingOtp(b.id, 'start'); setOtpMap(prev => ({ ...prev, [b.id]: code })) }}
-                                    className="btn-outline py-1 px-2 text-xs"
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      const code = await issueBookingOtp(b.id, 'start')
+                                      if (!code) {
+                                        alert('Could not generate OTP. Please ensure you are logged in as the booking customer and the database function permissions are applied. Then reload and try again.')
+                                        return
+                                      }
+                                      setOtpMap(prev => ({ ...prev, [b.id]: code }))
+                                    }}
+                                    className="btn-outline py-1 px-2 text-xs cursor-pointer pointer-events-auto relative z-10"
+                                    role="button"
+                                    tabIndex={0}
                                   >
                                     Generate Start OTP
                                   </button>

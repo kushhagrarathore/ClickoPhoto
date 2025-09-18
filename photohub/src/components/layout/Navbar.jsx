@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -21,6 +21,14 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const handleSignOut = async () => {
     if (signingOut) return
@@ -69,30 +77,23 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <nav className={`sticky top-0 z-50 transition-all ${scrolled ? 'backdrop-blur bg-white/70 shadow-lg' : 'backdrop-blur-md bg-white/40 shadow-sm'} border-b border-white/20` }>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className={`flex justify-between items-center transition-all ${scrolled ? 'h-14' : 'h-16'}`}>
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <Camera className="w-5 h-5 text-white" />
+            <div className={`rounded-lg flex items-center justify-center bg-gradient-to-r from-purple-600 to-sky-500 text-white transition-all ${scrolled ? 'w-7 h-7' : 'w-8 h-8'}`}>
+              <Camera className={`${scrolled ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </div>
-            <span className="text-xl font-bold text-gradient">PhotoDroneHire</span>
+            <span className={`font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-sky-500 transition-all ${scrolled ? 'text-lg' : 'text-xl'}`}>PhotoDroneHire</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-6">
             {navItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.path}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive(item.path)
-                    ? 'text-primary-600 bg-primary-50'
-                    : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
-                }`}
-              >
-                {item.name}
+              <Link key={item.name} to={item.path} className="relative text-sm font-medium text-gray-800 hover:text-gray-900">
+                <span>{item.name}</span>
+                <span className={`absolute left-0 -bottom-1 h-0.5 bg-gradient-to-r from-purple-600 to-sky-500 transition-all ${isActive(item.path) ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
               </Link>
             ))}
           </div>
@@ -170,13 +171,13 @@ const Navbar = () => {
               <>
                 <Link
                   to="/auth"
-                  className="hidden sm:block px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
+                  className="hidden sm:block px-4 py-2 text-sm font-medium text-gray-800 hover:text-gray-900 transition-colors"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/auth"
-                  className="btn-primary text-sm"
+                  className="text-sm px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-sky-500 text-white shadow hover:shadow-lg transition-shadow"
                 >
                   Get Started
                 </Link>

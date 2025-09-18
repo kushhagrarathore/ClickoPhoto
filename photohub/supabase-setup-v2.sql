@@ -306,3 +306,153 @@ select s.*,
 
 
 
+
+-- ============================================
+-- 8. PRODUCTION OTP BACKEND (start/end service)
+-- ============================================
+
+-- Booking OTPs table
+create table if not exists public.booking_otps (
+  id uuid primary key default gen_random_uuid(),
+  booking_id uuid not null references public.bookings(id) on delete cascade,
+  phase text not null check (phase in ('start','end')),
+  code_hash text not null,
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_booking_otps_booking on public.booking_otps(booking_id);
+create index if not exists idx_booking_otps_phase on public.booking_otps(phase);
+create index if not exists idx_booking_otps_expiry on public.booking_otps(expires_at);
+
+alter table public.booking_otps enable row level security;
+
+-- Policies: parties can see their own booking otps (minimal exposure)
+do $$ begin
+  create policy booking_otps_select_parties on public.booking_otps
+    for select using (
+      exists (
+        select 1 from public.bookings b
+        join public.user_profiles up on up.id = b.user_id
+        where b.id = booking_id and up.user_id = auth.uid()
+      )
+      or exists (
+        select 1 from public.bookings b
+        join public.host_profiles hp on hp.id = b.host_id
+        where b.id = booking_id and hp.user_id = auth.uid()
+      )
+    );
+exception when duplicate_object then null; end $$;
+
+-- Insert policy: customer can generate start OTP for their own booking
+do $$ begin
+  create policy booking_otps_insert_customer on public.booking_otps
+    for insert with check (
+      phase = 'start' and exists (
+        select 1 from public.bookings b
+        join public.user_profiles up on up.id = b.user_id
+        where b.id = booking_id and up.user_id = auth.uid()
+      )
+    );
+exception when duplicate_object then null; end $$;
+
+-- RPC: generate_otp(booking_id, phase)
+create or replace function public.generate_otp(p_booking_id uuid, p_phase text default 'start')
+returns table(code text, expires_at timestamptz)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_code text;
+  v_expires timestamptz := now() + interval '10 minutes';
+  v_is_customer boolean;
+  v_is_host boolean;
+begin
+  if p_phase not in ('start','end') then
+    raise exception 'Invalid phase';
+  end if;
+
+  -- permission check: start → customer; end → host (optional usage)
+  select exists (
+    select 1 from public.bookings b
+    join public.user_profiles up on up.id = b.user_id
+    where b.id = p_booking_id and up.user_id = auth.uid()
+  ) into v_is_customer;
+
+  select exists (
+    select 1 from public.bookings b
+    join public.host_profiles hp on hp.id = b.host_id
+    where b.id = p_booking_id and hp.user_id = auth.uid()
+  ) into v_is_host;
+
+  if p_phase = 'start' and not v_is_customer then
+    raise exception 'Not allowed to generate start OTP';
+  end if;
+  if p_phase = 'end' and not v_is_host then
+    raise exception 'Not allowed to generate end OTP';
+  end if;
+
+  v_code := lpad(floor(random()*900000 + 100000)::int::text, 6, '0');
+
+  insert into public.booking_otps(booking_id, phase, code_hash, expires_at)
+  values (p_booking_id, p_phase, encode(digest(v_code, 'sha256'),'hex'), v_expires);
+
+  return query select v_code, v_expires;
+end;
+$$;
+
+-- RPC: verify_otp(booking_id, phase, code)
+create or replace function public.verify_otp(p_booking_id uuid, p_phase text, p_code text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_hash text := encode(digest(p_code, 'sha256'),'hex');
+  v_id uuid;
+  v_is_customer boolean;
+  v_is_host boolean;
+begin
+  if p_phase not in ('start','end') then
+    return false;
+  end if;
+
+  -- permissions: start verified by host, end by customer
+  select exists (
+    select 1 from public.bookings b
+    join public.host_profiles hp on hp.id = b.host_id
+    where b.id = p_booking_id and hp.user_id = auth.uid()
+  ) into v_is_host;
+
+  select exists (
+    select 1 from public.bookings b
+    join public.user_profiles up on up.id = b.user_id
+    where b.id = p_booking_id and up.user_id = auth.uid()
+  ) into v_is_customer;
+
+  if p_phase = 'start' and not v_is_host then return false; end if;
+  if p_phase = 'end' and not v_is_customer then return false; end if;
+
+  select id into v_id from public.booking_otps
+   where booking_id = p_booking_id and phase = p_phase
+     and consumed_at is null and expires_at > now()
+   order by created_at desc limit 1;
+
+  if v_id is null then return false; end if;
+
+  if not exists (
+    select 1 from public.booking_otps where id = v_id and code_hash = v_hash
+  ) then return false; end if;
+
+  update public.booking_otps set consumed_at = now() where id = v_id;
+
+  update public.bookings
+     set status = case when p_phase = 'start' then 'ACTIVE' else 'COMPLETED' end
+   where id = p_booking_id;
+
+  return true;
+end;
+$$;
