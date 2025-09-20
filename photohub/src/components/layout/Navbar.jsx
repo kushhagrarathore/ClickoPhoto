@@ -12,7 +12,7 @@ import {
   Search,
   Bell
 } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 const Navbar = () => {
   const { user, profile, signOut } = useAuth()

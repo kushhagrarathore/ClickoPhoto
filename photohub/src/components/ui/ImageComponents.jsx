@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { uploadImages, parseServiceImages } from '@/utils/imageUtils'
+import { uploadImages, parseServiceImages } from '../../utils/imageUtils'
 import { X } from 'lucide-react'
 
 export const ImageUpload = ({ images = [], onImagesChange, maxImages = 6, bucket = 'service-images', hostId, disabled }) => {

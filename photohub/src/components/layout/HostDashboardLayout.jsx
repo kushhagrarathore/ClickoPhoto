@@ -18,8 +18,8 @@ import {
   HelpCircle,
   Camera
 } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabaseClient'
+import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabaseClient'
 
 const HostDashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)

@@ -11,18 +11,18 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react'
-import { useStore } from '@/contexts/StoreContext'
-import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '../../contexts/StoreContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 const Dashboard = () => {
-  const { bookings, services, reviews } = useStore()
-  const { user } = useAuth()
+  const { bookings, services, reviews, refreshData } = useStore()
+  const { user, profile } = useAuth()
   const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
 
   // Filter data for current host
-  const hostBookings = bookings.filter(b => b.host_id === user?.id)
-  const hostServices = services.filter(s => s.host_id === user?.id)
-  const hostReviews = reviews.filter(r => r.host_id === user?.id)
+  const hostBookings = bookings.filter(b => b.host_id === profile?.id)
+  const hostServices = services.filter(s => s.host_id === profile?.id)
+  const hostReviews = reviews.filter(r => r.host_id === profile?.id)
 
   // Calculate stats
   const totalBookings = hostBookings.length
@@ -103,6 +103,13 @@ const Dashboard = () => {
           <p className="text-gray-600">Welcome back! Here's what's happening with your business.</p>
         </div>
         <div className="flex items-center space-x-3">
+          <button 
+            onClick={refreshData}
+            className="btn-outline flex items-center gap-2"
+          >
+            <TrendingUp className="w-4 h-4" />
+            Refresh Data
+          </button>
           <button className="btn-outline">Export Report</button>
           <button className="btn-primary">Add Service</button>
         </div>

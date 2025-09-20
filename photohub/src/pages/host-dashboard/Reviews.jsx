@@ -13,12 +13,12 @@ import RatingStars from '@/components/ui/RatingStars'
 
 const Reviews = () => {
   const { reviews } = useStore()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [selectedRating, setSelectedRating] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
 
   // Filter reviews for current host
-  const hostReviews = reviews.filter(r => r.host_id === user?.id)
+  const hostReviews = reviews.filter(r => r.host_id === profile?.id)
 
   // Calculate average rating
   const averageRating = hostReviews.length > 0 

@@ -13,11 +13,11 @@ import { useAuth } from '@/contexts/AuthContext'
 
 const Earnings = () => {
   const { bookings } = useStore()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [selectedPeriod, setSelectedPeriod] = useState('month')
 
   // Filter bookings for current host
-  const hostBookings = bookings.filter(b => b.host_id === user?.id)
+  const hostBookings = bookings.filter(b => b.host_id === profile?.id)
 
   // Calculate earnings for different periods
   const now = new Date()

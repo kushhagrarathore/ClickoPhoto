@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { supabase, isSupabaseConfigured, TABLES } from '@/lib/supabaseClient'
-import { dummyServices, dummyBookings, dummyReviews, categories, subcategories } from '@/lib/dummyData'
-import { cleanupServiceImages, parseServiceImages } from '@/utils/imageUtils'
+import { supabase, isSupabaseConfigured, TABLES } from '../lib/supabaseClient'
+import { dummyServices, dummyBookings, dummyReviews, categories, subcategories } from '../lib/dummyData'
+import { cleanupServiceImages, parseServiceImages } from '../utils/imageUtils'
+import { useAuth } from './AuthContext'
 
 const StoreContext = createContext()
 
@@ -17,9 +18,9 @@ export const StoreProvider = ({ children }) => {
   const [services, setServices] = useState([])
   const [bookings, setBookings] = useState([])
   const [reviews, setReviews] = useState([])
-  const [bookingOtps, setBookingOtps] = useState({}) // { [bookingId]: { start?: code, end?: code } }
   const [loading, setLoading] = useState(true)
   const [isDummyMode, setIsDummyMode] = useState(!isSupabaseConfigured())
+  const { user } = useAuth()
 
   // Initialize store data
   useEffect(() => {
@@ -32,7 +33,7 @@ export const StoreProvider = ({ children }) => {
       return
     }
 
-    // Fetch initial data from Supabase
+    // For Supabase mode, fetch data immediately
     const fetchInitialData = async () => {
       try {
         const [servicesData, bookingsData, reviewsData] = await Promise.all([
@@ -52,7 +53,7 @@ export const StoreProvider = ({ children }) => {
     }
 
     fetchInitialData()
-  }, [isDummyMode])
+  }, [isDummyMode, user])
 
 
   // Fetch services
@@ -105,7 +106,7 @@ export const StoreProvider = ({ children }) => {
   const fetchBookings = async (userId = null) => {
     if (isDummyMode) {
       return userId 
-        ? dummyBookings.filter(b => b.customer_id === userId || b.host_id === userId)
+        ? dummyBookings.filter(b => b.user_id === userId || b.host_id === userId)
         : dummyBookings
     }
 
@@ -114,6 +115,7 @@ export const StoreProvider = ({ children }) => {
       if (userId) query = query.or(`user_id.eq.${userId},host_id.eq.${userId}`)
       const { data, error } = await query
       if (error) throw error
+      
       return data || []
     } catch (error) {
       console.error('Error fetching bookings:', error)
@@ -246,174 +248,132 @@ export const StoreProvider = ({ children }) => {
     }
 
     try {
-      // Ensure a user_profiles row exists and get its primary key (id)
+      console.log('📤 Creating booking with data:', bookingData)
+      
+      // Ensure user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !user) {
+        console.error('❌ Authentication error:', authError)
+        throw new Error('User not authenticated')
+      }
+
+      console.log('✅ User authenticated:', user.id)
+
+      // Ensure user profile exists
       let userProfileId = null
       try {
-        const authUserResp = await supabase.auth.getUser()
-        const authUser = authUserResp?.data?.user || null
-        if (!authUser?.id) throw new Error('Not authenticated')
-
-        const { data: existingProfile } = await supabase
+        const { data: existingProfile, error: profileError } = await supabase
           .from('user_profiles')
           .select('id')
-          .eq('user_id', authUser.id)
+          .eq('user_id', user.id)
           .maybeSingle()
+
+        if (profileError) {
+          console.warn('Profile lookup error:', profileError)
+        }
 
         if (existingProfile?.id) {
           userProfileId = existingProfile.id
+          console.log('✅ Found existing profile:', userProfileId)
         } else {
+          // Create user profile if it doesn't exist
           const { data: newProfile, error: insertProfileErr } = await supabase
             .from('user_profiles')
             .insert([{
-              user_id: authUser.id,
-              email: authUser?.email || bookingData.customer_email,
-              full_name: bookingData.customer_name || authUser?.user_metadata?.full_name || '',
-              phone: '',
-              location: '',
+              user_id: user.id,
+              email: user.email || bookingData.customer_email || '',
+              full_name: bookingData.customer_name || user.user_metadata?.full_name || '',
+              phone: bookingData.contact_phone || '',
+              location: bookingData.customer_location || '',
             }])
             .select('id')
             .single()
-          if (insertProfileErr) throw insertProfileErr
+          
+          if (insertProfileErr) {
+            console.error('❌ Profile creation error:', insertProfileErr)
+            throw insertProfileErr
+          }
+          
           userProfileId = newProfile?.id || null
+          console.log('✅ Created new profile:', userProfileId)
         }
-      } catch (ensureErr) {
-        console.warn('user_profiles ensure failed:', ensureErr?.message || ensureErr)
+      } catch (profileErr) {
+        console.error('❌ Profile handling failed:', profileErr)
+        throw new Error(`Profile setup failed: ${profileErr.message}`)
       }
 
-      // Map UI camelCase fields to DB snake_case schema
-      // Primary target: your actual schema (user_id, host_id, start_date, start_time, end_time)
-      const payload = {
+      // Clean the booking data to match database schema and RLS policies
+      const cleanBookingData = {
         service_id: bookingData.serviceId,
-        user_id: userProfileId, // RLS ties this to auth.uid via user_profiles
-        host_id: bookingData.hostId,
-        start_date: bookingData.startDateStr, // 'YYYY-MM-DD'
-        start_time: bookingData.startTimeStr, // 'HH:MM:SS'
-        end_time: bookingData.endTimeStr,     // 'HH:MM:SS'
+        user_id: userProfileId, // Use user profile ID to match foreign key constraint
+        host_id: bookingData.hostId, // Use host profile ID to match foreign key constraint
+        start_date: bookingData.startDateStr || bookingData.startDate,
+        start_time: bookingData.startTimeStr || bookingData.startTime,
+        end_time: bookingData.endTimeStr || bookingData.endTime,
         duration_hours: bookingData.durationType === 'hours' ? bookingData.duration : bookingData.duration * 24,
         total_amount: bookingData.totalAmount,
         status: 'CONFIRMED',
-        special_requirements: bookingData.specialRequests ?? null,
+        payment_status: 'PENDING',
+        special_requirements: bookingData.specialRequests || bookingData.special_requirements || null,
         service_type: bookingData.service_type || null,
         customer_name: bookingData.customer_name || null,
         customer_location: bookingData.customer_location || null,
+        location: bookingData.location || null,
+        contact_phone: bookingData.contact_phone || null,
+        otp: bookingData.otp || null,
       }
 
-      let insertedId = null
-      let insertError = null
-      // Attempt 1: snake_case (v2 schema)
-      try {
-        const { data, error } = await supabase
-          .from(TABLES.BOOKINGS)
-          .insert([payload])
-          .select('id')
-          .single()
-        if (error) throw error
-        insertedId = data?.id || null
-      } catch (e1) {
-        insertError = e1
-        // Attempt 2: camelCase columns (fallback)
-        try {
-          const camelPayload = {
-            serviceId: bookingData.serviceId,
-            userId: bookingData.customer_id,
-            hostId: bookingData.hostId,
-            startDate: bookingData.startDate,
-            startTime: bookingData.startTimeStr,
-            endTime: bookingData.endTimeStr,
-            durationHours: payload.duration_hours,
-            totalAmount: bookingData.totalAmount,
-            status: 'CONFIRMED',
-            specialRequirements: bookingData.specialRequests ?? null,
-          }
-          const { data, error } = await supabase
-            .from(TABLES.BOOKINGS)
-            .insert([camelPayload])
-            .select('id')
-            .single()
-          if (error) throw error
-          insertedId = data?.id || null
-          insertError = null
-        } catch (e2) {
-          insertError = e2
-          // Attempt 3: start_time/end_time variant (snake_case older schema)
-          try {
-            const timePayload = {
-              service_id: bookingData.serviceId,
-              user_id: bookingData.customer_id,
-              host_id: bookingData.hostId,
-              start_date: bookingData.startDateStr,
-              start_time: bookingData.startTimeStr,
-              end_time: bookingData.endTimeStr,
-              duration_hours: payload.duration_hours,
-              total_amount: bookingData.totalAmount,
-              status: 'CONFIRMED',
-              payment_status: 'PENDING',
-              special_requirements: bookingData.specialRequests ?? null,
-            }
-            const { data, error } = await supabase
-              .from(TABLES.BOOKINGS)
-              .insert([timePayload])
-              .select('id')
-              .single()
-            if (error) throw error
-            insertedId = data?.id || null
-            insertError = null
-          } catch (e3) {
-            insertError = e3
-          }
+      // Remove any unexpected fields that might cause issues
+      const allowedFields = [
+        'service_id', 'user_id', 'host_id', 'start_date', 'start_time', 'end_time',
+        'duration_hours', 'total_amount', 'status', 'payment_status', 'special_requirements',
+        'service_type', 'customer_name', 'customer_location', 'location', 'contact_phone', 'otp'
+      ]
+      
+      const finalBookingData = {}
+      allowedFields.forEach(field => {
+        if (cleanBookingData[field] !== undefined) {
+          finalBookingData[field] = cleanBookingData[field]
         }
+      })
+
+      // Insert booking
+      const { data, error } = await supabase
+        .from(TABLES.BOOKINGS)
+        .insert([finalBookingData])
+        .select()
+
+      if (error) {
+        console.error('❌ Supabase insert error:', error)
+        throw error
       }
-      if (insertError) {
-        console.error('Supabase insert error:', insertError)
-        return { data: null, error: insertError }
-      }
-      // Optimistically add a local representation for immediate UX feedback
-      setBookings(prev => [
-        ...prev,
-        {
-          id: insertedId || crypto?.randomUUID?.() || Date.now().toString(),
-          ...payload,
-          created_at: new Date().toISOString(),
-        },
-      ])
-      // Mark service as unavailable while booking is in progress (exclusive)
+
+      console.log('✅ Booking created successfully:', data)
+
+      // Update local state
+      setBookings(prev => [...prev, ...data])
+
+      // Mark service as unavailable
       try {
-        // update local cache first
-        setServices(prev => prev.map(s => s.id === payload.service_id ? { ...s, is_available: false } : s))
-        // persist to DB
+        setServices(prev => prev.map(s => 
+          s.id === finalBookingData.service_id 
+            ? { ...s, is_available: false } 
+            : s
+        ))
+        
         await supabase
           .from(TABLES.SERVICES)
           .update({ is_available: false })
-          .eq('id', payload.service_id)
-      } catch {}
+          .eq('id', finalBookingData.service_id)
+      } catch (serviceError) {
+        console.warn('Service availability update failed:', serviceError)
+      }
 
-      // Notify host via realtime broadcast (non-persistent)
-      try {
-        const channel = supabase.channel(`host:${payload.host_id}`)
-        await channel.subscribe()
-        channel.send({
-          type: 'broadcast',
-          event: 'booking_created',
-          payload: {
-            booking_id: insertedId,
-            customer_name: bookingData.customer_name,
-            customer_location: bookingData.customer_location,
-            service_type: bookingData.service_type,
-            service_id: payload.service_id,
-            user_id: payload.user_id,
-            start_date: payload.start_date,
-            start_time: payload.start_time,
-            end_time: payload.end_time,
-            total_amount: payload.total_amount,
-          },
-        })
-        // Optional: unsubscribe after sending to avoid leaked channels
-        setTimeout(() => channel.unsubscribe(), 500)
-      } catch {}
-      return { data: { id: insertedId, ...payload }, error: null }
+      return { data, error: null }
     } catch (error) {
-      console.error('Unexpected booking error:', error)
-      return { data: null, error }
+      console.error('❌ createBooking error:', error)
+      return { data: null, error: error.message || error }
     }
   }
 
@@ -453,7 +413,7 @@ export const StoreProvider = ({ children }) => {
             .update({ is_available: true })
             .eq('id', data.service_id)
           setServices(prev => prev.map(s => s.id === data.service_id ? { ...s, is_available: true } : s))
-        } else if (status === 'CONFIRMED' || status === 'ACTIVE') {
+        } else if (status === 'CONFIRMED') {
           await supabase
             .from(TABLES.SERVICES)
             .update({ is_available: false })
@@ -467,52 +427,6 @@ export const StoreProvider = ({ children }) => {
     }
   }
 
-  // Issue OTP for a booking (host action)
-  const issueBookingOtp = async (bookingId, phase = 'start') => {
-    const existing = bookingOtps[bookingId]?.[phase]
-    if (existing) return existing
-    const code = String(Math.floor(100000 + Math.random() * 900000))
-    setBookingOtps(prev => ({ ...prev, [bookingId]: { ...(prev[bookingId] || {}), [phase]: code } }))
-    try {
-      const channel = supabase.channel(`booking:${bookingId}`)
-      await channel.subscribe()
-      channel.send({ type: 'broadcast', event: `otp_${phase}_issued`, payload: { booking_id: bookingId, code } })
-      setTimeout(() => channel.unsubscribe(), 500)
-    } catch {}
-    return code
-  }
-
-  // Verify OTP (customer action) and complete booking
-  const verifyBookingOtp = async (bookingId, code, phase = 'start') => {
-    const expected = bookingOtps[bookingId]?.[phase]
-    if (!expected || expected !== String(code)) {
-      return { ok: false, error: 'Invalid or expired OTP' }
-    }
-    // start -> ACTIVE, end -> COMPLETED
-    const newStatus = phase === 'start' ? 'ACTIVE' : 'COMPLETED'
-    const res = await updateBookingStatus(bookingId, newStatus)
-    if (!res.error) {
-      setBookingOtps(prev => {
-        const current = { ...(prev[bookingId] || {}) }
-        delete current[phase]
-        // clear all OTPs when completed
-        const next = newStatus === 'COMPLETED' ? undefined : current
-        if (!next) {
-          const { [bookingId]: _, ...rest } = prev
-          return rest
-        }
-        return { ...prev, [bookingId]: next }
-      })
-      try {
-        const channel = supabase.channel(`booking:${bookingId}`)
-        await channel.subscribe()
-        channel.send({ type: 'broadcast', event: `otp_${phase}_verified`, payload: { booking_id: bookingId } })
-        setTimeout(() => channel.unsubscribe(), 500)
-      } catch {}
-      return { ok: true }
-    }
-    return { ok: false, error: res.error }
-  }
 
   // Early end by customer, with warning handled in UI; completes immediately
   const endServiceNow = async (bookingId) => {
@@ -524,7 +438,7 @@ export const StoreProvider = ({ children }) => {
     if (isDummyMode) return
     const timers = []
     bookings.forEach((b) => {
-      if (String(b.status).toUpperCase() === 'ACTIVE' && b.end_time) {
+      if (String(b.status).toUpperCase() === 'CONFIRMED' && b.end_time) {
         const endAt = new Date(`${b.start_date}T${b.end_time}`)
         const delay = endAt.getTime() - Date.now()
         if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
@@ -608,6 +522,28 @@ export const StoreProvider = ({ children }) => {
     }
   }
 
+  // Refresh all data
+  const refreshData = async () => {
+    if (isDummyMode) return
+    
+    setLoading(true)
+    try {
+      const [servicesData, bookingsData, reviewsData] = await Promise.all([
+        fetchServices(),
+        fetchBookings(),
+        fetchReviews(),
+      ])
+
+      setServices(servicesData)
+      setBookings(bookingsData)
+      setReviews(reviewsData)
+    } catch (error) {
+      console.error('Error refreshing data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const value = {
     services,
     bookings,
@@ -619,14 +555,12 @@ export const StoreProvider = ({ children }) => {
     fetchServices,
     fetchBookings,
     fetchReviews,
+    refreshData,
     createService,
     updateService,
     deleteService,
     createBooking,
     updateBookingStatus,
-    issueBookingOtp,
-    verifyBookingOtp,
-    getBookingOtp: (bookingId, phase = 'start') => bookingOtps[bookingId]?.[phase],
     endServiceNow,
     extendService,
     createReview,

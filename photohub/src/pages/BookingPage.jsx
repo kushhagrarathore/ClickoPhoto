@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, MapPin, Clock } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
-import { useStore } from '@/contexts/StoreContext'
-import BookingForm from '@/components/ui/BookingForm'
-import RatingStars from '@/components/ui/RatingStars'
-import { ImageCarousel } from '@/components/ui/ImageComponents'
+import { useAuth } from '../contexts/AuthContext'
+import { useStore } from '../contexts/StoreContext'
+import BookingForm from '../components/ui/BookingForm'
+import RatingStars from '../components/ui/RatingStars'
+import { ImageCarousel } from '../components/ui/ImageComponents'
 
 const BookingPage = () => {
   const { serviceId } = useParams()
@@ -40,33 +40,55 @@ const BookingPage = () => {
     }
 
     setLoading(true)
-    console.log('Booking data:', bookingData)
+    console.log('📋 Booking data received:', bookingData)
 
     try {
-      const result = await createBooking({
+      const bookingPayload = {
         ...bookingData,
         customer_name: profile?.full_name || user.email,
         customer_location: profile?.location || '',
         service_type: service?.category || service?.subcategory || 'Service',
-      })
+        contact_phone: profile?.phone || '',
+        location: service?.location || '',
+      }
 
-      console.log('createBooking result:', result)
+      console.log('📤 Submitting booking payload:', bookingPayload)
 
-      // ✅ Safe error handling
+      const result = await createBooking(bookingPayload)
+
+      console.log('📥 createBooking result:', result)
+
+      // Enhanced error handling
       if (result && result.error) {
-        console.error('Booking error:', result.error)
-        alert(`Failed to create booking: ${result.error.message || JSON.stringify(result.error)}`)
+        console.error('❌ Booking error:', result.error)
+        
+        // Provide more specific error messages
+        let errorMessage = 'Failed to create booking'
+        if (typeof result.error === 'string') {
+          errorMessage = result.error
+        } else if (result.error.message) {
+          errorMessage = result.error.message
+        } else if (result.error.details) {
+          errorMessage = result.error.details
+        }
+        
+        alert(`❌ ${errorMessage}`)
         return
       }
 
-      // Success
-      setSuccess(true)
-      setTimeout(() => {
-        navigate('/customer/dashboard')
-      }, 3000)
+      if (result && result.data) {
+        console.log('✅ Booking created successfully:', result.data)
+        setSuccess(true)
+        setTimeout(() => {
+          navigate('/user-dashboard')
+        }, 2000)
+      } else {
+        console.error('❌ Unexpected result structure:', result)
+        alert('❌ Booking failed: Unexpected response format')
+      }
     } catch (err) {
-      console.error('Booking error (exception):', err)
-      alert(`An unexpected error occurred: ${err.message || JSON.stringify(err)}`)
+      console.error('❌ Unexpected error during booking:', err)
+      alert(`❌ Booking failed: ${err.message || 'Unknown error occurred'}`)
     } finally {
       setLoading(false)
     }

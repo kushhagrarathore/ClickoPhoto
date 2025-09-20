@@ -7,13 +7,12 @@ import {
   AlertCircle,
   Eye,
 } from 'lucide-react'
-import { useStore } from '@/contexts/StoreContext'
-import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '../../contexts/StoreContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 const Bookings = () => {
-  const { bookings, verifyBookingOtp } = useStore()
-  const [otpInputs, setOtpInputs] = useState({}) // bookingId -> code
-  const { profile } = useAuth()
+  const { bookings, updateBookingStatus, refreshData } = useStore()
+  const { user, profile } = useAuth()
   const [activeTab, setActiveTab] = useState('pending')
 
   const hostBookings = bookings.filter(b => b.host_id === profile?.id)
@@ -78,6 +77,12 @@ const Bookings = () => {
           <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
           <p className="text-gray-600">New booking notifications will appear here.</p>
         </div>
+        <button
+          onClick={refreshData}
+          className="btn-outline flex items-center gap-2"
+        >
+          🔄 Refresh Data
+        </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -119,7 +124,7 @@ const Bookings = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start OTP</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                     <th className="px-6 py-3" />
                   </tr>
@@ -148,23 +153,15 @@ const Bookings = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {String(b.status).toUpperCase() === 'CONFIRMED' ? (
                           <div className="flex items-center space-x-2">
-                            <input
-                              type="text"
-                              placeholder="Enter start OTP"
-                              value={otpInputs[b.id] || ''}
-                              onChange={(e) => setOtpInputs(prev => ({ ...prev, [b.id]: e.target.value }))}
-                              className="input-field w-36"
-                            />
                             <button
                               onClick={async () => {
-                                const code = otpInputs[b.id]
-                                const res = await verifyBookingOtp(b.id, code, 'start')
-                                if (res?.error || res?.ok === false) alert(res.error || 'Invalid OTP')
-                                else alert('Service activated')
+                                const res = await updateBookingStatus(b.id, 'COMPLETED')
+                                if (res?.error) alert(res.error)
+                                else alert('Service completed')
                               }}
                               className="btn-primary py-1 px-3 text-xs"
                             >
-                              Start
+                              Complete Service
                             </button>
                           </div>
                         ) : (

@@ -2,33 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react'
 import DashboardSidebar from '@/components/ui/DashboardSidebar'
 import { useStore } from '@/contexts/StoreContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabaseClient'
 
 const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
 
 const CustomerBookings = () => {
-  const { bookings, verifyBookingOtp, issueBookingOtp, getBookingOtp, endServiceNow, extendService } = useStore()
+  const { bookings, endServiceNow, extendService, refreshData } = useStore()
   const { profile } = useAuth()
   const myBookings = useMemo(() => (bookings || []).filter(b => b.user_id === profile?.id), [bookings, profile?.id])
-  const [otpMap, setOtpMap] = useState({}) // bookingId -> code
   const [extend, setExtend] = useState({}) // bookingId -> { minutes, rate }
 
-  useEffect(() => {
-    // subscribe to per-booking channel to receive OTP broadcasts
-    const channels = myBookings.map((b) => {
-      const ch = supabase.channel(`booking:${b.id}`)
-      ch.on('broadcast', { event: 'otp_start_issued' }, (payload) => {
-        const code = payload?.payload?.code
-        if (code) setOtpMap(prev => ({ ...prev, [b.id]: code }))
-      })
-      ch.on('broadcast', { event: 'otp_start_verified' }, () => {
-        setOtpMap(prev => { const { [b.id]: _, ...rest } = prev; return rest })
-      })
-      ch.subscribe()
-      return ch
-    })
-    return () => { channels.forEach(ch => ch.unsubscribe()) }
-  }, [myBookings])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -36,7 +18,16 @@ const CustomerBookings = () => {
         <DashboardSidebar userRole="customer" />
         <div className="flex-1 p-8">
           <div className="max-w-7xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">My Bookings</h1>
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
+              <button
+                onClick={refreshData}
+                className="btn-outline flex items-center gap-2"
+              >
+                🔄 Refresh Data
+              </button>
+            </div>
+            
             <div className="card p-6">
               {myBookings.length === 0 ? (
                 <p className="text-gray-600">You have not made any bookings yet.</p>
@@ -49,7 +40,7 @@ const CustomerBookings = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start OTP / Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -61,20 +52,6 @@ const CustomerBookings = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{inr.format(b.total_amount || 0)}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             {String(b.status).toUpperCase() === 'CONFIRMED' && (
-                              <div className="flex items-center space-x-2">
-                                <span className="text-gray-900 font-mono">{getBookingOtp(b.id, 'start') || otpMap[b.id] || '—'}</span>
-                                {!getBookingOtp(b.id, 'start') && (
-                                  <button
-                                    onClick={async () => { const code = await issueBookingOtp(b.id, 'start'); setOtpMap(prev => ({ ...prev, [b.id]: code })) }}
-                                    className="btn-outline py-1 px-2 text-xs"
-                                  >
-                                    Generate Start OTP
-                                  </button>
-                                )}
-                                <span className="text-xs text-gray-500">Share this code with your host to begin</span>
-                              </div>
-                            )}
-                            {String(b.status).toUpperCase() === 'ACTIVE' && (
                               <div className="flex items-center space-x-2">
                                 <button
                                   onClick={async () => {

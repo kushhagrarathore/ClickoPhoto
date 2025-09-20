@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Plus, Edit, Trash2, Eye, EyeOff, Package, DollarSign, Calendar, Star, MapPin, X
 } from 'lucide-react'
-import { ImageUpload, ImageCarousel } from '@/components/ui/ImageComponents'
-import { parseServiceImages } from '@/utils/imageUtils'
-import { useStore } from '@/contexts/StoreContext'
-import { useAuth } from '@/contexts/AuthContext'
+import { ImageUpload, ImageCarousel } from '../../components/ui/ImageComponents'
+import { parseServiceImages } from '../../utils/imageUtils'
+import { useStore } from '../../contexts/StoreContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 // Minimal India states list (extend as needed)
 const INDIA_STATES = [
@@ -22,7 +22,7 @@ const Services = () => {
   
   const [submitState, setSubmitState] = useState({ loading: false, error: '', success: '' })
 
-  // Filter services for current host (use host profile id)
+  // Filter services for current host (use auth user id)
   const hostServices = services.filter(s => s.host_id === profile?.id)
 
   const [formData, setFormData] = useState({
@@ -63,7 +63,7 @@ const Services = () => {
     // Prepare payload with normalized Drive links
     const serviceData = {
       ...formData,
-      host_id: profile?.id,
+      host_id: user?.id, // Use auth user ID to match RLS policy: auth.uid() = host_id
       hourly_rate: formData.pricing_type === 'HOURLY' ? parseFloat(formData.hourly_rate) : null,
       daily_rate: formData.pricing_type === 'DAILY' ? parseFloat(formData.daily_rate) : null,
       fixed_rate: formData.pricing_type === 'FIXED' ? parseFloat(formData.fixed_rate) : null
@@ -333,7 +333,7 @@ const Services = () => {
                   onImagesChange={(imgs) =>
                     setFormData((prev) => ({ ...prev, images: imgs }))
                   }
-                  hostId={profile?.id}   // 🔥 pass hostId here
+                  hostId={user?.id}   // 🔥 pass auth user ID here
                   disabled={submitState.loading}
                 />
                 <p className="text-xs text-gray-500 mt-1">
